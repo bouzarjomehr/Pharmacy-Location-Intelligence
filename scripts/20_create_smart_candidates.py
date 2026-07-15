@@ -1,110 +1,107 @@
+"""
+20_create_smart_candidates.py
+
+Generate candidate points along the road network.
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
-from shapely.geometry import Point
 
 ROOT = Path(__file__).resolve().parents[1]
 
-print("=" * 60)
-print("Creating Smart Candidate Points")
-print("=" * 60)
+INPUT_FILE = ROOT / "data" / "processed" / "roads_clean.geojson"
+OUTPUT_FILE = ROOT / "data" / "processed" / "road_points.geojson"
 
-roads = gpd.read_file(
-    ROOT / "data" / "processed" / "roads_clean.geojson"
-)
+TARGET_CRS = 32640
+OUTPUT_CRS = 4326
 
-roads = roads.to_crs(32640)
 
-points = []
-
-for _, row in roads.iterrows():
-
-    line = row.geometry
-
-    if line is None:
-        continue
-
-    length = line.length
-
-    # -------------------------
-    # Determine spacing
-    # -------------------------
+def get_spacing(length: float) -> float:
+    """Determine sampling distance based on road length."""
 
     if length < 100:
-        spacing = length + 1
+        return length + 1
 
-    elif length < 250:
-        spacing = length / 2
+    if length < 250:
+        return length / 2
 
-    elif length < 500:
-        spacing = 125
+    if length < 500:
+        return 125
 
-    elif length < 1000:
-        spacing = 100
+    if length < 1000:
+        return 100
 
-    else:
-        spacing = 120
+    return 120
 
-    d = 0
 
-    while d <= length:
+def main():
 
-        p = line.interpolate(d)
+    print("=" * 60)
+    print("Creating Smart Candidate Points")
+    print("=" * 60)
 
-        points.append({
+    roads = gpd.read_file(INPUT_FILE).to_crs(TARGET_CRS)
 
-            "road_type": row.road_type,
+    points = []
 
-            "road_weight": row.road_weight,
+    for row in roads.itertuples():
 
-            "geometry": p
+        line = row.geometry
 
-        })
+        if line is None:
+            continue
 
-        d += spacing
+        length = line.length
+        spacing = get_spacing(length)
 
-    # همیشه انتهای خیابان را هم اضافه کن
-    p = line.interpolate(length)
+        distance = 0
 
-    points.append({
+        while distance <= length:
 
-        "road_type": row.road_type,
+            points.append(
+                {
+                    "road_type": row.road_type,
+                    "road_weight": row.road_weight,
+                    "geometry": line.interpolate(distance),
+                }
+            )
 
-        "road_weight": row.road_weight,
+            distance += spacing
 
-        "geometry": p
+        # Always include the end of the road segment
+        points.append(
+            {
+                "road_type": row.road_type,
+                "road_weight": row.road_weight,
+                "geometry": line.interpolate(length),
+            }
+        )
 
-    })
+    gdf = gpd.GeoDataFrame(points, crs=roads.crs)
 
-gdf = gpd.GeoDataFrame(
-    points,
-    crs=roads.crs
-)
+    # Remove duplicated points (10 cm tolerance)
+    gdf["x"] = gdf.geometry.x.round(1)
+    gdf["y"] = gdf.geometry.y.round(1)
 
-# حذف نقاط تکراری
-gdf["x"] = gdf.geometry.x.round(1)
-gdf["y"] = gdf.geometry.y.round(1)
+    gdf = (
+        gdf.drop_duplicates(subset=["x", "y"])
+        .drop(columns=["x", "y"])
+        .to_crs(OUTPUT_CRS)
+    )
 
-gdf = gdf.drop_duplicates(
-    subset=["x", "y"]
-)
+    gdf.to_file(
+        OUTPUT_FILE,
+        driver="GeoJSON",
+    )
 
-gdf = gdf.drop(
-    columns=["x", "y"]
-)
+    print()
+    print("Saved:")
+    print(OUTPUT_FILE)
 
-gdf = gdf.to_crs(4326)
+    print()
+    print(f"Total Smart Candidates: {len(gdf):,}")
 
-outfile = ROOT / "data" / "processed" / "road_points.geojson"
 
-gdf.to_file(
-    outfile,
-    driver="GeoJSON"
-)
-
-print()
-print("Saved:")
-print(outfile)
-
-print()
-print("Total Smart Candidates:", len(gdf))
+if __name__ == "__main__":
+    main()

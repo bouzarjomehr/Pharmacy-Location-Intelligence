@@ -1,59 +1,20 @@
+"""
+Generate the final candidate database inside the urban mask.
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
 
-print("=" * 60)
-print("Generating Candidate Locations")
-print("=" * 60)
-
 ROOT = Path(__file__).resolve().parents[1]
 
-# -----------------------------
-# Load scored road points
-# -----------------------------
-candidate = gpd.read_file(
-    ROOT / "data" / "processed" / "road_scores_multicriteria.geojson"
-)
+INPUT_FILE = ROOT / "data" / "processed" / "road_scores_multicriteria.geojson"
+URBAN_MASK = ROOT / "data" / "processed" / "urban_mask.geojson"
 
-# -----------------------------
-# Keep only urban area
-# -----------------------------
-mask = gpd.read_file(
-    ROOT / "data" / "processed" / "urban_mask.geojson"
-)
+OUTPUT_GEOJSON = ROOT / "data" / "processed" / "candidate_database.geojson"
+OUTPUT_EXCEL = ROOT / "data" / "processed" / "candidate_database.xlsx"
 
-candidate = gpd.sjoin(
-    candidate,
-    mask,
-    predicate="within",
-    how="inner"
-)
-
-candidate = candidate.drop(
-    columns=["index_right"],
-    errors="ignore"
-)
-
-# -----------------------------
-# Sort by score
-# -----------------------------
-candidate = candidate.sort_values(
-    "final_score",
-    ascending=False
-).reset_index(drop=True)
-
-# -----------------------------
-# Candidate IDs
-# -----------------------------
-candidate["candidate_id"] = [
-    f"C{i:06d}"
-    for i in range(1, len(candidate) + 1)
-]
-
-# -----------------------------
-# Columns
-# -----------------------------
-cols = [
+OUTPUT_COLUMNS = [
     "candidate_id",
     "geometry",
     "road_type",
@@ -65,33 +26,89 @@ cols = [
     "final_score",
 ]
 
-candidate = candidate[cols]
 
-# -----------------------------
-# Save
-# -----------------------------
-out_geo = ROOT / "data" / "processed" / "candidate_database.geojson"
-out_xlsx = ROOT / "data" / "processed" / "candidate_database.xlsx"
+def main():
 
-candidate.to_file(
-    out_geo,
-    driver="GeoJSON"
-)
+    print("=" * 60)
+    print("Generating Candidate Locations")
+    print("=" * 60)
 
-candidate.drop(
-    columns="geometry"
-).to_excel(
-    out_xlsx,
-    index=False
-)
+    # -------------------------------------------------
+    # Load data
+    # -------------------------------------------------
 
-print()
-print("Saved:")
-print(out_geo)
-print(out_xlsx)
+    candidates = gpd.read_file(INPUT_FILE)
+    urban_mask = gpd.read_file(URBAN_MASK)
 
-print()
-print(candidate.head())
+    # -------------------------------------------------
+    # Keep only urban candidates
+    # -------------------------------------------------
 
-print()
-print("Total candidates:", len(candidate))
+    candidates = gpd.sjoin(
+        candidates,
+        urban_mask,
+        predicate="within",
+        how="inner",
+    )
+
+    candidates = candidates.drop(
+        columns=["index_right"],
+        errors="ignore",
+    )
+
+    # -------------------------------------------------
+    # Rank candidates
+    # -------------------------------------------------
+
+    candidates = (
+        candidates
+        .sort_values(
+            "final_score",
+            ascending=False,
+        )
+        .reset_index(drop=True)
+    )
+
+    # -------------------------------------------------
+    # Generate IDs
+    # -------------------------------------------------
+
+    candidates["candidate_id"] = [
+        f"C{i:06d}"
+        for i in range(1, len(candidates) + 1)
+    ]
+
+    candidates = candidates[OUTPUT_COLUMNS]
+
+    # -------------------------------------------------
+    # Save outputs
+    # -------------------------------------------------
+
+    candidates.to_file(
+        OUTPUT_GEOJSON,
+        driver="GeoJSON",
+    )
+
+    (
+        candidates
+        .drop(columns="geometry")
+        .to_excel(
+            OUTPUT_EXCEL,
+            index=False,
+        )
+    )
+
+    print()
+    print("Saved:")
+    print(OUTPUT_GEOJSON)
+    print(OUTPUT_EXCEL)
+
+    print()
+    print(candidates.head())
+
+    print()
+    print(f"Total candidates: {len(candidates):,}")
+
+
+if __name__ == "__main__":
+    main()

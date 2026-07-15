@@ -1,3 +1,7 @@
+"""
+Multi-criteria scoring engine for pharmacy candidate locations.
+"""
+
 from pathlib import Path
 import json
 
@@ -5,134 +9,190 @@ import geopandas as gpd
 import numpy as np
 from scipy.spatial import cKDTree
 
-print("="*60)
-print("Multi-Criteria Scoring Engine")
-print("="*60)
-
 ROOT = Path(__file__).resolve().parents[1]
 
-# ---------- Settings ----------
+CONFIG_FILE = ROOT / "config" / "scoring.json"
 
-with open(ROOT/"config"/"scoring.json", encoding="utf8") as f:
-    settings = json.load(f)
+INPUT_FACILITIES = ROOT / "data" / "processed" / "master_database.geojson"
+INPUT_ROADS = ROOT / "data" / "processed" / "road_points.geojson"
 
-weights = settings["weights"]
+OUTPUT_FILE = ROOT / "data" / "processed" / "road_scores_multicriteria.geojson"
 
-road_bonus = settings["road_bonus"]
+TARGET_CRS = 32640
+OUTPUT_CRS = 4326
 
-radius = settings["radius"]
 
-sigma = settings["sigma"]
+def main():
 
-competition_radius = settings["competition_radius"]
+    print("=" * 60)
+    print("Multi-Criteria Scoring Engine")
+    print("=" * 60)
 
-score_weights = settings["score_weights"]
+    # -------------------------------------------------
+    # Load settings
+    # -------------------------------------------------
 
-# ---------- Data ----------
+    with open(CONFIG_FILE, encoding="utf8") as f:
+        settings = json.load(f)
 
-fac = gpd.read_file(ROOT/"data/processed/master_database.geojson").to_crs(32640)
+    facility_weights = settings["weights"]
+    road_bonus = settings["road_bonus"]
 
-roads = gpd.read_file(ROOT/"data/processed/road_points.geojson").to_crs(32640)
+    radius = settings["radius"]
+    sigma = settings["sigma"]
 
-coords = np.c_[fac.geometry.x, fac.geometry.y]
+    score_weights = settings["score_weights"]
 
-tree = cKDTree(coords)
+    # competition_radius فعلاً استفاده نمی‌شود
+    # ولی برای نسخه‌های بعدی در فایل تنظیمات نگه می‌داریم.
+    _competition_radius = settings["competition_radius"]
 
-road_scores=[]
+    # -------------------------------------------------
+    # Load data
+    # -------------------------------------------------
 
-prescription_scores=[]
-
-competition_scores=[]
-
-access_scores=[]
-
-road_importance=[]
-
-for _, road in roads.iterrows():
-
-    point=np.array([road.geometry.x,road.geometry.y])
-
-    ids=tree.query_ball_point(point,radius)
-
-    prescription=0
-
-    competition=0
-
-    access=0
-
-    road_score=road_bonus.get(road["road_type"],1)
-
-    for i in ids:
-
-        f=fac.iloc[i]
-
-        dist=np.linalg.norm(
-            point-
-            np.array([f.geometry.x,f.geometry.y])
-        )
-
-        influence=np.exp(-(dist**2)/(2*sigma**2))
-
-        t=f["type"]
-
-        if t=="Pharmacy":
-
-            competition+=influence
-
-        else:
-
-            prescription+=weights.get(t,0)*influence
-
-            access+=influence
-
-    final=(
-        prescription*score_weights["prescription"]
-        -
-        competition*score_weights["competition"]
-        +
-        access*score_weights["accessibility"]
-        +
-        road_score*score_weights["road"]
+    facilities = (
+        gpd.read_file(INPUT_FACILITIES)
+        .to_crs(TARGET_CRS)
     )
 
-    prescription_scores.append(prescription)
+    roads = (
+        gpd.read_file(INPUT_ROADS)
+        .to_crs(TARGET_CRS)
+    )
 
-    competition_scores.append(competition)
+    coords = np.c_[facilities.geometry.x, facilities.geometry.y]
+    tree = cKDTree(coords)
 
-    access_scores.append(access)
+    prescription_scores = []
+    competition_scores = []
+    accessibility_scores = []
+    road_scores = []
+    final_scores = []
 
-    road_importance.append(road_score)
+    # -------------------------------------------------
+    # Score every candidate
+    # -------------------------------------------------
 
-    road_scores.append(final)
+    for road in roads.itertuples():
 
-roads["prescription_score"]=prescription_scores
+        point = np.array([
+            road.geometry.x,
+            road.geometry.y
+        ])
 
-roads["competition_score"]=competition_scores
+        nearby_ids = tree.query_ball_point(
+            point,
+            radius
+        )
 
-roads["accessibility_score"]=access_scores
+        prescription = 0.0
+        competition = 0.0
+        accessibility = 0.0
 
-roads["road_score"]=road_importance
+        road_score = road_bonus.get(
+            road.road_type,
+            1
+        )
 
-roads["final_score"]=road_scores
+        for idx in nearby_ids:
 
-roads=roads.to_crs(4326)
+            facility = facilities.iloc[idx]
 
-outfile=ROOT/"data/processed/road_scores_multicriteria.geojson"
+            distance = np.linalg.norm(
+                point -
+                np.array([
+                    facility.geometry.x,
+                    facility.geometry.y
+                ])
+            )
 
-roads.to_file(outfile,driver="GeoJSON")
+            influence = np.exp(
+                -(distance ** 2) /
+                (2 * sigma ** 2)
+            )
 
-print()
+            facility_type = facility["type"]
 
-print("Saved:")
+            if facility_type == "Pharmacy":
 
-print(outfile)
+                competition += influence
 
-print()
+            else:
 
-print(roads[[
-    "prescription_score",
-    "competition_score",
-    "accessibility_score",
-    "road_score",
-    "final_score"
-]].describe())
+                prescription += (
+                    facility_weights.get(
+                        facility_type,
+                        0
+                    )
+                    * influence
+                )
+
+                accessibility += influence
+
+        final_score = (
+
+            prescription
+            * score_weights["prescription"]
+
+            -
+
+            competition
+            * score_weights["competition"]
+
+            +
+
+            accessibility
+            * score_weights["accessibility"]
+
+            +
+
+            road_score
+            * score_weights["road"]
+
+        )
+
+        prescription_scores.append(prescription)
+        competition_scores.append(competition)
+        accessibility_scores.append(accessibility)
+        road_scores.append(road_score)
+        final_scores.append(final_score)
+
+    # -------------------------------------------------
+    # Save scores
+    # -------------------------------------------------
+
+    roads["prescription_score"] = prescription_scores
+    roads["competition_score"] = competition_scores
+    roads["accessibility_score"] = accessibility_scores
+    roads["road_score"] = road_scores
+    roads["final_score"] = final_scores
+
+    roads = roads.to_crs(OUTPUT_CRS)
+
+    roads.to_file(
+        OUTPUT_FILE,
+        driver="GeoJSON"
+    )
+
+    print()
+    print("Saved:")
+    print(OUTPUT_FILE)
+
+    print()
+
+    print(
+        roads[
+            [
+                "prescription_score",
+                "competition_score",
+                "accessibility_score",
+                "road_score",
+                "final_score",
+            ]
+        ].describe()
+    )
+
+
+if __name__ == "__main__":
+    main()

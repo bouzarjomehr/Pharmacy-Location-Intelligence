@@ -1,3 +1,7 @@
+"""
+Score candidate road points using nearby healthcare facilities.
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
@@ -10,75 +14,79 @@ print("=" * 60)
 
 ROOT = Path(__file__).resolve().parents[1]
 
-roads = gpd.read_file(ROOT/"data/processed/road_points.geojson")
-fac = gpd.read_file(ROOT/"data/processed/master_database.geojson")
+INPUT_ROADS = ROOT / "data" / "processed" / "road_points.geojson"
+INPUT_FACILITIES = ROOT / "data" / "processed" / "master_database.geojson"
+OUTPUT_FILE = ROOT / "data" / "processed" / "scored_roads.geojson"
 
-roads = roads.to_crs(32640)
-fac = fac.to_crs(32640)
+SEARCH_RADIUS = 800  # meters
 
-coords = np.c_[fac.geometry.x, fac.geometry.y]
+FACILITY_WEIGHTS = {
+    "Hospital": 8,
+    "Clinic": 4,
+    "Doctor": 2,
+    "Pharmacy": -6,
+}
+
+ROAD_BONUS = {
+    "trunk": 4,
+    "primary": 3.5,
+    "secondary": 3,
+    "tertiary": 2,
+    "residential": 1,
+    "service": 0.5,
+    "living_street": 0.5,
+    "unclassified": 1,
+    "primary_link": 2,
+    "secondary_link": 1.5,
+    "tertiary_link": 1,
+    "trunk_link": 2.5,
+}
+
+roads = gpd.read_file(INPUT_ROADS).to_crs(32640)
+facilities = gpd.read_file(INPUT_FACILITIES).to_crs(32640)
+
+coords = np.c_[facilities.geometry.x, facilities.geometry.y]
 tree = cKDTree(coords)
 
-weights = {
-    "Hospital":8,
-    "Clinic":4,
-    "Doctor":2,
-    "Pharmacy":-6
-}
+scores = []
 
-road_bonus = {
-    "trunk":4,
-    "primary":3.5,
-    "secondary":3,
-    "tertiary":2,
-    "residential":1,
-    "service":0.5,
-    "living_street":0.5,
-    "unclassified":1,
-    "primary_link":2,
-    "secondary_link":1.5,
-    "tertiary_link":1,
-    "trunk_link":2.5
-}
+for _, road in roads.iterrows():
 
-scores=[]
+    point = np.array([road.geometry.x, road.geometry.y])
 
-radius=800
+    nearby_ids = tree.query_ball_point(point, SEARCH_RADIUS)
 
-for p,row in roads.iterrows():
+    score = ROAD_BONUS.get(road["road_type"], 1)
 
-    point=np.array([row.geometry.x,row.geometry.y])
+    for idx in nearby_ids:
 
-    ids=tree.query_ball_point(point,radius)
+        facility = facilities.iloc[idx]
 
-    s=road_bonus.get(row["road_type"],1)
+        facility_point = np.array(facility.geometry.coords[0])
 
-    for i in ids:
+        distance = np.linalg.norm(point - facility_point)
 
-        r=fac.iloc[i]
+        if distance < 1:
+            distance = 1
 
-        d=point-fac.geometry.iloc[i].coords[0]
-        dist=np.sqrt(d[0]**2+d[1]**2)
+        weight = FACILITY_WEIGHTS.get(facility["type"], 0)
 
-        if dist<1:
-            dist=1
+        score += weight / (distance / 100)
 
-        w=weights.get(r["type"],0)
+    scores.append(score)
 
-        s+=w/(dist/100)
+roads["score"] = scores
 
-    scores.append(s)
+roads = roads.to_crs(4326)
 
-roads["score"]=scores
-
-roads=roads.to_crs(4326)
-
-outfile=ROOT/"data/processed/scored_roads.geojson"
-
-roads.to_file(outfile,driver="GeoJSON")
+roads.to_file(
+    OUTPUT_FILE,
+    driver="GeoJSON",
+)
 
 print()
 print("Saved:")
-print(outfile)
+print(OUTPUT_FILE)
+
 print()
 print(roads["score"].describe())

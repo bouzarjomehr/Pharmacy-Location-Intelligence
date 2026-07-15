@@ -1,75 +1,102 @@
+"""
+Select the best candidate locations while enforcing a minimum distance.
+"""
+
 from pathlib import Path
 
 import geopandas as gpd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-print("=" * 60)
-print("Selecting Best Areas")
-print("=" * 60)
+INPUT_FILE = ROOT / "data" / "processed" / "candidate_database.geojson"
 
-INPUT = ROOT / "data" / "processed" / "candidate_database.geojson"
+OUTPUT_GEOJSON = ROOT / "data" / "processed" / "best_areas.geojson"
+OUTPUT_EXCEL = ROOT / "data" / "processed" / "best_areas.xlsx"
 
-gdf = gpd.read_file(INPUT)
+TARGET_CRS = 32640
+OUTPUT_CRS = 4326
 
-# برای محاسبه فاصله
-gdf = gdf.to_crs(32640)
-
-gdf = gdf.sort_values(
-    "final_score",
-    ascending=False
-).reset_index(drop=True)
-
-MIN_DISTANCE = 250      # متر
+MIN_DISTANCE = 250      # meters
 TOP_N = 100
 
-selected = []
 
-while len(gdf) > 0 and len(selected) < TOP_N:
+def main():
 
-    best = gdf.iloc[0]
+    print("=" * 60)
+    print("Selecting Best Areas")
+    print("=" * 60)
 
-    selected.append(best)
+    candidates = (
+        gpd.read_file(INPUT_FILE)
+        .to_crs(TARGET_CRS)
+        .sort_values(
+            "final_score",
+            ascending=False,
+        )
+        .reset_index(drop=True)
+    )
 
-    distances = gdf.distance(best.geometry)
+    selected = []
 
-    gdf = gdf.loc[
-        distances > MIN_DISTANCE
-    ].reset_index(drop=True)
+    while len(candidates) > 0 and len(selected) < TOP_N:
 
-selected = gpd.GeoDataFrame(
-    selected,
-    crs=gdf.crs
-)
+        best = candidates.iloc[0]
 
-selected = selected.to_crs(4326)
+        selected.append(best)
 
-out_geo = ROOT / "data" / "processed" / "best_areas.geojson"
-out_xlsx = ROOT / "data" / "processed" / "best_areas.xlsx"
+        distances = candidates.distance(best.geometry)
 
-selected.to_file(
-    out_geo,
-    driver="GeoJSON"
-)
+        candidates = (
+            candidates.loc[
+                distances > MIN_DISTANCE
+            ]
+            .reset_index(drop=True)
+        )
 
-selected.drop(
-    columns="geometry"
-).to_excel(
-    out_xlsx,
-    index=False
-)
+    selected = gpd.GeoDataFrame(
+        selected,
+        crs=TARGET_CRS,
+    )
 
-print()
-print("Saved:")
-print(out_geo)
-print(out_xlsx)
+    selected = selected.to_crs(OUTPUT_CRS)
 
-print()
-print(selected[[
-    "candidate_id",
-    "road_type",
-    "final_score"
-]].head(20))
+    # -------------------------------------------------
+    # Save outputs
+    # -------------------------------------------------
 
-print()
-print("Selected:", len(selected))
+    selected.to_file(
+        OUTPUT_GEOJSON,
+        driver="GeoJSON",
+    )
+
+    (
+        selected
+        .drop(columns="geometry")
+        .to_excel(
+            OUTPUT_EXCEL,
+            index=False,
+        )
+    )
+
+    print()
+    print("Saved:")
+    print(OUTPUT_GEOJSON)
+    print(OUTPUT_EXCEL)
+
+    print()
+    print(
+        selected[
+            [
+                "candidate_id",
+                "road_type",
+                "final_score",
+            ]
+        ].head(20)
+    )
+
+    print()
+    print(f"Selected: {len(selected)}")
+
+
+if __name__ == "__main__":
+    main()

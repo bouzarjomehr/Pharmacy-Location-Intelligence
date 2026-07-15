@@ -1,3 +1,7 @@
+"""
+Create an interactive map of recommended pharmacy locations.
+"""
+
 from pathlib import Path
 
 import folium
@@ -5,135 +9,184 @@ import geopandas as gpd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-print("="*60)
-print("Creating Interactive Map")
-print("="*60)
+BEST_AREAS = ROOT / "data" / "processed" / "best_areas.geojson"
+MASTER_DATABASE = ROOT / "data" / "processed" / "master_database.geojson"
+ROADS = ROOT / "data" / "processed" / "roads_clean.geojson"
 
-candidates = gpd.read_file(
-    ROOT/"data"/"processed"/"best_areas.geojson"
-)
+OUTPUT_MAP = ROOT / "outputs" / "best_locations_map.html"
 
-facilities = gpd.read_file(
-    ROOT/"data"/"processed"/"master_database.geojson"
-)
+MAP_CENTER = [31.8974, 54.3569]
+MAP_ZOOM = 13
 
-roads = gpd.read_file(
-    ROOT/"data"/"processed"/"roads_clean.geojson"
-)
 
-roads = roads[["geometry","road_type","road_weight"]].copy()
+def main():
 
-roads = roads.to_crs(4326)
+    print("=" * 60)
+    print("Creating Interactive Map")
+    print("=" * 60)
 
-m = folium.Map(
-    location=[31.8974,54.3569],
-    zoom_start=13,
-    tiles="CartoDB positron"
-)
+    # -------------------------------------------------
+    # Load data
+    # -------------------------------------------------
 
-# ---------------- Roads ----------------
+    candidates = gpd.read_file(BEST_AREAS)
 
-road_layer = folium.FeatureGroup(
-    name="Roads",
-    show=False
-)
+    facilities = gpd.read_file(MASTER_DATABASE)
 
-folium.GeoJson(
-    roads,
-    style_function=lambda x:{
-        "color":"gray",
-        "weight":1,
-        "opacity":0.4
+    roads = (
+        gpd.read_file(ROADS)[
+            [
+                "geometry",
+                "road_type",
+                "road_weight",
+            ]
+        ]
+        .copy()
+        .to_crs(4326)
+    )
+
+    # -------------------------------------------------
+    # Create map
+    # -------------------------------------------------
+
+    m = folium.Map(
+        location=MAP_CENTER,
+        zoom_start=MAP_ZOOM,
+        tiles="CartoDB positron",
+    )
+
+    # =================================================
+    # Roads
+    # =================================================
+
+    road_layer = folium.FeatureGroup(
+        name="Roads",
+        show=False,
+    )
+
+    folium.GeoJson(
+        roads,
+        style_function=lambda _: {
+            "color": "#888888",
+            "weight": 1,
+            "opacity": 0.40,
+        },
+    ).add_to(road_layer)
+
+    road_layer.add_to(m)
+
+    # =================================================
+    # Pharmacies
+    # =================================================
+
+    pharmacy_layer = folium.FeatureGroup(
+        name="Pharmacies",
+        show=True,
+    )
+
+    # =================================================
+    # Healthcare (Doctors / Clinics / Hospitals)
+    # =================================================
+
+    healthcare_layer = folium.FeatureGroup(
+        name="Healthcare",
+        show=True,
+    )
+
+    colors = {
+        "Doctor": "#8ecae6",      # Light Blue
+        "Clinic": "#219ebc",      # Medium Blue
+        "Hospital": "#023047",    # Dark Blue
+        "Pharmacy": "#8e44ad",    # Purple
     }
-).add_to(road_layer)
 
-road_layer.add_to(m)
+    for facility in facilities.itertuples():
 
-# ---------------- Facilities ----------------
+        marker = folium.CircleMarker(
+            [facility.geometry.y, facility.geometry.x],
+            radius=4,
+            color=colors.get(facility.type, "black"),
+            fill=True,
+            fill_color=colors.get(facility.type, "black"),
+            fill_opacity=0.95,
+            popup=f"""
+            <b>{facility.name}</b><br>
+            Type: {facility.type}
+            """,
+        )
 
-facility_layer = folium.FeatureGroup(
-    name="Healthcare"
-)
+        if facility.type == "Pharmacy":
+            marker.add_to(pharmacy_layer)
+        else:
+            marker.add_to(healthcare_layer)
 
-colors = {
+    pharmacy_layer.add_to(m)
+    healthcare_layer.add_to(m)
 
-    "Doctor":"blue",
+    # =================================================
+    # Recommended Locations
+    # =================================================
 
-    "Clinic":"green",
+    candidate_layer = folium.FeatureGroup(
+        name="Recommended Pharmacy Locations",
+        show=True,
+    )
 
-    "Hospital":"red",
+    for idx, candidate in enumerate(candidates.itertuples()):
 
-    "Pharmacy":"purple"
+        if idx < 20:
+            color = "#00441b"
 
-}
+        elif idx < 40:
+            color = "#1b7837"
 
-for _,r in facilities.iterrows():
+        elif idx < 60:
+            color = "#5aae61"
 
-    folium.CircleMarker(
+        elif idx < 80:
+            color = "#a6d96a"
 
-        [r.geometry.y,r.geometry.x],
+        else:
+            color = "#d9f0d3"
 
-        radius=4,
-
-        color=colors.get(r.type,"black"),
-
-        fill=True,
-
-        popup=f"{r['name']}<br>{r['type']}"
-
-    ).add_to(facility_layer)
-
-facility_layer.add_to(m)
-
-# ---------------- Candidates ----------------
-
-candidate_layer = folium.FeatureGroup(
-    name="Top 100"
-)
-
-max_score = candidates.final_score.max()
-
-for _,r in candidates.iterrows():
-
-    ratio = r.final_score/max_score
-
-    if ratio>0.8:
-        color="red"
-    elif ratio>0.6:
-        color="orange"
-    elif ratio>0.4:
-        color="yellow"
-    else:
-        color="green"
-
-    folium.CircleMarker(
-
-        [r.geometry.y,r.geometry.x],
-
-        radius=7,
-
-        color=color,
-
-        fill=True,
-
-        fill_opacity=0.9,
-
-        popup=f"""
-        <b>{r.candidate_id}</b><br>
-        Score : {r.final_score:.1f}<br>
-        Road : {r.road_type}
+        popup = f"""
+        <b>{candidate.candidate_id}</b><br>
+        <b>Rank:</b> {idx + 1}<br>
+        <b>Score:</b> {candidate.final_score:.2f}<br>
+        <b>Road:</b> {candidate.road_type}
         """
 
-    ).add_to(candidate_layer)
+        folium.CircleMarker(
+            [candidate.geometry.y, candidate.geometry.x],
+            radius=7,
+            color=color,
+            fill=True,
+            fill_color=color,
+            fill_opacity=0.95,
+            weight=2,
+            popup=popup,
+        ).add_to(candidate_layer)
 
-candidate_layer.add_to(m)
+    candidate_layer.add_to(m)
 
-folium.LayerControl().add_to(m)
+    # =================================================
+    # Layer Control
+    # =================================================
 
-outfile = ROOT/"outputs"/"best_locations_map.html"
+    folium.LayerControl(
+        collapsed=False
+    ).add_to(m)
 
-m.save(outfile)
+    # -------------------------------------------------
+    # Save
+    # -------------------------------------------------
 
-print()
-print("Saved:")
-print(outfile)
+    m.save(OUTPUT_MAP)
+
+    print()
+    print("Saved:")
+    print(OUTPUT_MAP)
+
+
+if __name__ == "__main__":
+    main()
