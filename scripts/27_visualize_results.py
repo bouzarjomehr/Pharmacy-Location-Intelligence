@@ -97,7 +97,7 @@ def main():
         "Doctor": "#8ecae6",      # Light Blue
         "Clinic": "#219ebc",      # Medium Blue
         "Hospital": "#023047",    # Dark Blue
-        "Pharmacy": "#8e44ad",    # Purple
+        "Pharmacy": "#dd0000",    # Red
     }
 
     for facility in facilities.itertuples():
@@ -149,12 +149,68 @@ def main():
         else:
             color = "#d9f0d3"
 
-        popup = f"""
-        <b>{candidate.candidate_id}</b><br>
-        <b>Rank:</b> {idx + 1}<br>
-        <b>Score:</b> {candidate.final_score:.2f}<br>
-        <b>Road:</b> {candidate.road_type}
-        """
+        popup = folium.Popup(
+        f"""
+        <div style="width:270px">
+
+        <h4>{candidate.candidate_id}</h4>
+
+        <b>Rank:</b> {idx+1}<br>
+        <b>Final Score:</b> {candidate.final_score:.2f}
+
+        <br><br>
+
+        <b>Score Details:</b><br>
+        <table style="width:100%">
+
+        <tr>
+        <td>Hospital</td>
+        <td align="right">{candidate.hospital_score:.1f}</td>
+        </tr>
+
+        <tr>
+        <td>Clinic</td>
+        <td align="right">{candidate.clinic_score:.1f}</td>
+        </tr>
+
+        <tr>
+        <td>Doctor</td>
+        <td align="right">{candidate.doctor_score:.1f}</td>
+        </tr>
+
+        <tr>
+        <td>Competition</td>
+        <td align="right">-{candidate.competition_score:.1f}</td>
+        </tr>
+
+        <tr>
+        <td>Accessibility</td>
+        <td align="right">{candidate.accessibility_score:.1f}</td>
+        </tr>
+
+        <tr>
+        <td>Road</td>
+        <td align="right">{candidate.road_score:.1f}</td>
+        </tr>
+
+        </table>
+
+        <br>
+
+        <b>Main Driver:</b>
+
+        {candidate.main_reason.title()}
+
+        <br>
+
+        <b>Road Type:</b>
+
+        {candidate.road_type}
+
+        </div>
+        """,
+        max_width=320
+        )
 
         folium.CircleMarker(
             [candidate.geometry.y, candidate.geometry.x],
@@ -172,6 +228,42 @@ def main():
     # =================================================
     # Layer Control
     # =================================================
+    legend = """
+    <div style="
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 260px;
+    z-index:9999;
+    background:white;
+    padding:12px;
+    border:2px solid grey;
+    font-size:13px;
+    ">
+
+    <b>Recommended Locations</b><br>
+
+    <span style="color:#00441b;">●</span> Rank 1–20<br>
+    <span style="color:#1b7837;">●</span> Rank 21–40<br>
+    <span style="color:#5aae61;">●</span> Rank 41–60<br>
+    <span style="color:#a6d96a;">●</span> Rank 61–80<br>
+    <span style="color:#d9f0d3;">●</span> Rank 81–100
+
+    <hr>
+
+    <b>Healthcare Facilities</b><br>
+
+    <span style="color:#023047;">●</span> Hospital<br>
+    <span style="color:#219ebc;">●</span> Clinic<br>
+    <span style="color:#8ecae6;">●</span> Doctor<br>
+    <span style="color:#dd0000;">●</span> Pharmacy
+
+    </div>
+    """
+
+    m.get_root().html.add_child(
+        folium.Element(legend)
+    )
 
     folium.LayerControl(
         collapsed=False

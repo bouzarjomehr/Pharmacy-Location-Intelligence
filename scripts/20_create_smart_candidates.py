@@ -16,6 +16,20 @@ OUTPUT_FILE = ROOT / "data" / "processed" / "road_points.geojson"
 TARGET_CRS = 32640
 OUTPUT_CRS = 4326
 
+# -------------------------------------------------
+# Only these road types are considered suitable
+# for potential pharmacy locations.
+# -------------------------------------------------
+
+VALID_ROAD_TYPES = {
+
+    "trunk",
+    "primary",
+    "secondary",
+    "tertiary",
+
+}
+
 
 def get_spacing(length: float) -> float:
     """Determine sampling distance based on road length."""
@@ -41,7 +55,19 @@ def main():
     print("Creating Smart Candidate Points")
     print("=" * 60)
 
-    roads = gpd.read_file(INPUT_FILE).to_crs(TARGET_CRS)
+    roads = (
+        gpd.read_file(INPUT_FILE)
+        .to_crs(TARGET_CRS)
+    )
+
+    print()
+    print(f"Road segments before filtering : {len(roads):,}")
+
+    roads = roads[
+        roads["road_type"].isin(VALID_ROAD_TYPES)
+    ].copy()
+
+    print(f"Road segments after filtering  : {len(roads):,}")
 
     points = []
 
@@ -53,6 +79,7 @@ def main():
             continue
 
         length = line.length
+
         spacing = get_spacing(length)
 
         distance = 0
@@ -69,7 +96,8 @@ def main():
 
             distance += spacing
 
-        # Always include the end of the road segment
+        # Always include end point
+
         points.append(
             {
                 "road_type": row.road_type,
@@ -78,14 +106,19 @@ def main():
             }
         )
 
-    gdf = gpd.GeoDataFrame(points, crs=roads.crs)
+    gdf = gpd.GeoDataFrame(
+        points,
+        crs=roads.crs,
+    )
 
     # Remove duplicated points (10 cm tolerance)
+
     gdf["x"] = gdf.geometry.x.round(1)
     gdf["y"] = gdf.geometry.y.round(1)
 
     gdf = (
-        gdf.drop_duplicates(subset=["x", "y"])
+        gdf
+        .drop_duplicates(subset=["x", "y"])
         .drop(columns=["x", "y"])
         .to_crs(OUTPUT_CRS)
     )

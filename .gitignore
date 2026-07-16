@@ -14,16 +14,16 @@ venv/
 cache/
 
 # Output files
-outputs/
+# outputs/
 
 # Processed data
-data/processed/
-outputs/
+# data/processed/
+# outputs/
 cache/
 # ولی data/raw را نگه می‌داریم
 
-# Web generated data
-web/data/
+# Web UI
+web/
 
 # Temporary files
 *.log

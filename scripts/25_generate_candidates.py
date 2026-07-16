@@ -14,18 +14,6 @@ URBAN_MASK = ROOT / "data" / "processed" / "urban_mask.geojson"
 OUTPUT_GEOJSON = ROOT / "data" / "processed" / "candidate_database.geojson"
 OUTPUT_EXCEL = ROOT / "data" / "processed" / "candidate_database.xlsx"
 
-OUTPUT_COLUMNS = [
-    "candidate_id",
-    "geometry",
-    "road_type",
-    "road_weight",
-    "prescription_score",
-    "competition_score",
-    "accessibility_score",
-    "road_score",
-    "final_score",
-]
-
 
 def main():
 
@@ -78,7 +66,50 @@ def main():
         for i in range(1, len(candidates) + 1)
     ]
 
-    candidates = candidates[OUTPUT_COLUMNS]
+    # -------------------------------------------------
+    # Keep useful columns
+    # -------------------------------------------------
+
+    preferred = [
+
+        "candidate_id",
+
+        "geometry",
+
+        "road_type",
+        "road_weight",
+
+        "hospital_score",
+        "clinic_score",
+        "doctor_score",
+
+        "prescription_score",
+        "competition_score",
+        "accessibility_score",
+
+        "road_score",
+
+        "final_score",
+
+    ]
+
+    existing = [
+        c
+        for c in preferred
+        if c in candidates.columns
+    ]
+
+    remaining = [
+
+        c
+        for c in candidates.columns
+        if c not in existing
+
+    ]
+
+    candidates = candidates[
+        existing + remaining
+    ]
 
     # -------------------------------------------------
     # Save outputs

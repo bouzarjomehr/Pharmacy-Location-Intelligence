@@ -1,7 +1,7 @@
 {
-    "weights": {
-        "Hospital": 8,
-        "Clinic": 4,
+    "facility_weights": {
+        "Hospital": 6,
+        "Clinic": 3,
         "Doctor": 2,
         "Pharmacy": -6
     },
@@ -21,20 +21,29 @@
         "trunk_link": 2.5
     },
 
-    "radius": 250,
+    "search_radius": 250,
 
-    "sigma": 250,
+    "gaussian_sigma": 125,
 
     "competition_radius": 300,
 
     "score_weights": {
 
-        "prescription": 0.40,
+        "prescription": 2,
 
-        "competition": 0.20,
+        "competition": 3,
 
-        "accessibility": 0.20,
+        "accessibility": 0.1,
 
-        "road": 0.20
+        "road": 0.1
+
+    },
+
+    "candidate_selection": {
+
+        "minimum_distance": 2000,
+
+        "top_n": 100
+
     }
 }
