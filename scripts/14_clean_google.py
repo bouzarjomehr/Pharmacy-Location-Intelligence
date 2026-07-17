@@ -1,52 +1,103 @@
-import sys
 from pathlib import Path
+import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-import pandas as pd
 import geopandas as gpd
+import pandas as pd
 
-import config
+import config.app_config as app_config
 
-print("=" * 60)
-print("Cleaning Google Healthcare Database")
-print("=" * 60)
 
-file = config.DATA_PROCESSED / "google_healthcare.geojson"
+def main():
 
-gdf = gpd.read_file(file)
+    print("=" * 60)
+    print("Cleaning Google Healthcare Database")
+    print("=" * 60)
 
-print("\nLoaded:", len(gdf))
+    input_file = app_config.DATA_PROCESSED / "google_healthcare.geojson"
 
-# حذف رکوردهای بدون نام
-gdf["name"] = gdf["name"].fillna("").str.strip()
-gdf = gdf[gdf["name"] != ""]
+    gdf = gpd.read_file(input_file)
 
-print("After removing empty names:", len(gdf))
+    print(f"\nLoaded: {len(gdf):,}")
 
-# حذف تکراری‌ها بر اساس نام و مختصات
-gdf = gdf.drop_duplicates(
-    subset=["name", "lat", "lon"]
-)
+    # -------------------------------------------------
+    # Remove empty names
+    # -------------------------------------------------
 
-print("After duplicate removal:", len(gdf))
+    gdf["name"] = (
+        gdf["name"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
 
-# مرتب‌سازی
-gdf = gdf.sort_values(
-    by=["type", "name"]
-)
+    gdf = gdf[gdf["name"] != ""].copy()
 
-# ذخیره
-out_geo = config.DATA_PROCESSED / "google_healthcare_clean.geojson"
-out_xlsx = config.DATA_PROCESSED / "google_healthcare_clean.xlsx"
+    print(f"After removing empty names: {len(gdf):,}")
 
-gdf.to_file(out_geo, driver="GeoJSON")
-gdf.drop(columns="geometry").to_excel(out_xlsx, index=False)
+    # -------------------------------------------------
+    # Remove duplicates
+    # -------------------------------------------------
 
-print("\nSaved:")
-print(out_geo)
-print(out_xlsx)
+    gdf = (
+        gdf
+        .drop_duplicates(
+            subset=["name", "lat", "lon"]
+        )
+        .copy()
+    )
 
-print("\nCounts:")
-print(gdf["type"].value_counts())
+    print(f"After duplicate removal: {len(gdf):,}")
+
+    # -------------------------------------------------
+    # Sort
+    # -------------------------------------------------
+
+    gdf = (
+        gdf
+        .sort_values(
+            by=["type", "name"]
+        )
+        .reset_index(drop=True)
+    )
+
+    # -------------------------------------------------
+    # Save
+    # -------------------------------------------------
+
+    output_geojson = (
+        app_config.DATA_PROCESSED
+        / "google_healthcare_clean.geojson"
+    )
+
+    output_excel = (
+        app_config.DATA_PROCESSED
+        / "google_healthcare_clean.xlsx"
+    )
+
+    gdf.to_file(
+        output_geojson,
+        driver="GeoJSON",
+    )
+
+    (
+        gdf
+        .drop(columns="geometry")
+        .to_excel(
+            output_excel,
+            index=False,
+        )
+    )
+
+    print("\nSaved:")
+    print(output_geojson)
+    print(output_excel)
+
+    print("\nCounts:")
+    print(gdf["type"].value_counts())
+
+
+if __name__ == "__main__":
+    main()

@@ -4,6 +4,13 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
+RAW_GOOGLE_FILE = (
+    ROOT
+    / "data"
+    / "raw"
+    / "master_healthcare_google_raw.jsonl"
+)
+
 PIPELINE = [
 
     "13_import_google.py",
@@ -16,10 +23,6 @@ PIPELINE = [
 
     "19_prepare_roads.py",
 
-    "20_create_smart_candidates.py",
-
-    "21_score_roads.py",    
-
     "24_create_urban_mask.py",
 
 ]
@@ -29,6 +32,34 @@ print("PHASE 1 : DATA PREPARATION")
 print("=" * 60)
 
 for script in PIPELINE:
+
+    # -------------------------------------------------
+    # Script 13 is optional
+    # -------------------------------------------------
+
+    if (
+        script == "13_import_google.py"
+        and not RAW_GOOGLE_FILE.exists()
+    ):
+
+        print()
+        print("-" * 60)
+        print("Skipping:", script)
+        print("-" * 60)
+        print(
+            "Google raw response not found."
+        )
+        print(
+            "Using existing processed dataset:"
+        )
+        print(
+            ROOT
+            / "data"
+            / "processed"
+            / "google_healthcare.geojson"
+        )
+
+        continue
 
     print()
     print("-" * 60)
@@ -40,8 +71,10 @@ for script in PIPELINE:
     )
 
     if result.returncode != 0:
+
         print()
         print("ERROR:", script)
+
         sys.exit(1)
 
 print()

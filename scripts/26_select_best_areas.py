@@ -2,7 +2,7 @@
 Select the best candidate locations while enforcing
 a minimum distance.
 """
-
+import json
 from pathlib import Path
 
 import geopandas as gpd
@@ -10,22 +10,30 @@ import geopandas as gpd
 ROOT = Path(__file__).resolve().parents[1]
 
 INPUT_FILE = ROOT / "data" / "processed" / "candidate_database.geojson"
-
+CONFIG_FILE = ROOT / "config" / "scoring.json"
 OUTPUT_GEOJSON = ROOT / "data" / "processed" / "best_areas.geojson"
 OUTPUT_EXCEL = ROOT / "data" / "processed" / "best_areas.xlsx"
 
 TARGET_CRS = 32640
 OUTPUT_CRS = 4326
 
-MIN_DISTANCE = 250
-TOP_N = 100
-
 
 def main():
+
+    with open(CONFIG_FILE, encoding="utf8") as f:
+        settings = json.load(f)
+
+    MIN_DISTANCE = settings["candidate_selection"]["minimum_distance"]
+    TOP_N = settings["candidate_selection"]["top_n"]
 
     print("=" * 60)
     print("Selecting Best Areas")
     print("=" * 60)
+
+    print()
+    print(f"Minimum spacing : {MIN_DISTANCE} m")
+    print(f"Top candidates  : {TOP_N}")
+    print()
 
     # -------------------------------------------------
     # Load candidates

@@ -1,86 +1,97 @@
+"""
+19_prepare_roads.py
+
+Clean and classify the downloaded road network.
+"""
+
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
 import geopandas as gpd
 
-ROOT = Path(__file__).resolve().parent.parent
-
-print("=" * 60)
-print("Preparing Road Network")
-print("=" * 60)
-
-roads = gpd.read_file(
-    ROOT / "data" / "processed" / "roads.geojson"
-)
-
-# ----------------------------------------
-# فقط معابر مناسب برای احداث داروخانه
-# ----------------------------------------
+import config.app_config as app_config
 
 KEEP = {
-    "motorway":5,
-    "motorway_link":5,
-
-    "trunk":5,
-    "trunk_link":5,
-
-    "primary":4,
-    "primary_link":4,
-
-    "secondary":3,
-    "secondary_link":3,
-
-    "tertiary":2,
-    "tertiary_link":2,
-
-    "residential":1,
-
-    "living_street":1,
-
-    "unclassified":1,
-
-    "service":0.5
+    "motorway": 5,
+    "motorway_link": 5,
+    "trunk": 5,
+    "trunk_link": 5,
+    "primary": 4,
+    "primary_link": 4,
+    "secondary": 3,
+    "secondary_link": 3,
+    "tertiary": 2,
+    "tertiary_link": 2,
+    "residential": 1,
+    "living_street": 1,
+    "unclassified": 1,
+    "service": 0.5,
 }
 
 
-def get_type(v):
+def get_type(value):
 
-    if isinstance(v, list):
-        for x in v:
-            if x in KEEP:
-                return x
+    if isinstance(value, list):
+        for item in value:
+            if item in KEEP:
+                return item
         return None
 
-    if v in KEEP:
-        return v
+    if value in KEEP:
+        return value
 
     return None
 
 
-roads["road_type"] = roads["highway"].apply(get_type)
+def main():
 
-roads = roads[
-    roads["road_type"].notna()
-].copy()
+    print("=" * 60)
+    print("Preparing Road Network")
+    print("=" * 60)
 
-roads["road_weight"] = roads["road_type"].map(KEEP)
+    roads = gpd.read_file(
+        app_config.DATA_PROCESSED / "roads.geojson"
+    )
 
-roads = roads.to_crs(32640)
+    # -------------------------------------------------
+    # Keep only supported road categories
+    # -------------------------------------------------
 
-outfile = ROOT / "data" / "processed" / "roads_clean.geojson"
+    roads["road_type"] = roads["highway"].apply(get_type)
 
-roads.to_file(outfile, driver="GeoJSON")
+    roads = roads[
+        roads["road_type"].notna()
+    ].copy()
 
-print()
-print("Saved:")
-print(outfile)
+    roads["road_weight"] = roads["road_type"].map(KEEP)
 
-print()
-print("Road counts")
-print("-"*40)
+    roads = roads.to_crs(app_config.TARGET_CRS)
 
-print(
-    roads["road_type"]
-    .value_counts()
-)
+    outfile = (
+        app_config.DATA_PROCESSED
+        / "roads_clean.geojson"
+    )
 
-print()
-print("Total roads:", len(roads))
+    roads.to_file(
+        outfile,
+        driver="GeoJSON",
+    )
+
+    print()
+    print("Saved:")
+    print(outfile)
+
+    print()
+    print("Road counts")
+    print("-" * 40)
+    print(roads["road_type"].value_counts())
+
+    print()
+    print(f"Total roads: {len(roads):,}")
+
+
+if __name__ == "__main__":
+    main()

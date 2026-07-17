@@ -1,88 +1,106 @@
-import sys
-from pathlib import Path
+"""
+Prepare the master healthcare database.
+"""
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT))
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT))
 
 import geopandas as gpd
-import pandas as pd
 
-import config
+import config.app_config as app_config
 
-print("=" * 60)
-print("Preparing Master Database")
-print("=" * 60)
 
-INPUT = config.DATA_PROCESSED / "google_healthcare_clean.geojson"
+def main():
 
-gdf = gpd.read_file(INPUT)
+    print("=" * 60)
+    print("Preparing Master Database")
+    print("=" * 60)
 
-# -------------------------------------------------
-# استانداردسازی ستون‌ها
-# -------------------------------------------------
+    # -------------------------------------------------
+    # Load
+    # -------------------------------------------------
 
-columns = {
+    input_file = (
+        app_config.DATA_PROCESSED
+        / "google_healthcare_clean.geojson"
+    )
 
-    "google_id":"id",
-    "name":"name",
-    "type":"type",
-    "lat":"lat",
-    "lon":"lon",
-    "rating":"rating",
-    "reviews":"reviews",
-    "address":"address",
-    "phone":"phone",
-    "website":"website",
+    gdf = gpd.read_file(input_file)
 
-}
+    # -------------------------------------------------
+    # Standardize columns
+    # -------------------------------------------------
 
-gdf = gdf[list(columns.keys()) + ["geometry"]]
+    columns = {
+        "google_id": "id",
+        "name": "name",
+        "type": "type",
+        "lat": "lat",
+        "lon": "lon",
+        "rating": "rating",
+        "reviews": "reviews",
+        "address": "address",
+        "phone": "phone",
+        "website": "website",
+    }
 
-gdf = gdf.rename(columns=columns)
+    gdf = gdf[list(columns.keys()) + ["geometry"]]
+    gdf = gdf.rename(columns=columns)
 
-# -------------------------------------------------
-# ستون‌هایی که بعداً استفاده می‌کنیم
-# -------------------------------------------------
+    # -------------------------------------------------
+    # Placeholder fields for future extensions
+    # -------------------------------------------------
 
-gdf["score"] = 0.0
+    gdf["score"] = 0.0
+    gdf["weight"] = 0.0
+    gdf["specialty"] = ""
+    gdf["population"] = None
+    gdf["nearest_pharmacy"] = None
+    gdf["nearest_hospital"] = None
+    gdf["nearest_doctor"] = None
 
-gdf["weight"] = 0.0
+    # -------------------------------------------------
+    # Save
+    # -------------------------------------------------
 
-gdf["specialty"] = ""
+    out_geo = (
+        app_config.DATA_PROCESSED
+        / "master_database.geojson"
+    )
 
-gdf["population"] = None
+    out_xlsx = (
+        app_config.DATA_PROCESSED
+        / "master_database.xlsx"
+    )
 
-gdf["nearest_pharmacy"] = None
+    gdf.to_file(
+        out_geo,
+        driver="GeoJSON",
+    )
 
-gdf["nearest_hospital"] = None
+    (
+        gdf
+        .drop(columns="geometry")
+        .to_excel(
+            out_xlsx,
+            index=False,
+        )
+    )
 
-gdf["nearest_doctor"] = None
+    print()
+    print("Saved:")
+    print(out_geo)
+    print(out_xlsx)
 
-# -------------------------------------------------
+    print()
+    print(gdf.head())
 
-OUT_GEO = config.DATA_PROCESSED / "master_database.geojson"
+    print()
+    print(f"Total records: {len(gdf):,}")
 
-OUT_XLSX = config.DATA_PROCESSED / "master_database.xlsx"
 
-gdf.to_file(OUT_GEO, driver="GeoJSON")
-
-gdf.drop(columns="geometry").to_excel(
-    OUT_XLSX,
-    index=False
-)
-
-print()
-
-print("Saved:")
-
-print(OUT_GEO)
-
-print(OUT_XLSX)
-
-print()
-
-print(gdf.head())
-
-print()
-
-print("Total:", len(gdf))
+if __name__ == "__main__":
+    main()

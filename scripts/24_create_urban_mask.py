@@ -1,61 +1,133 @@
+"""
+24_create_urban_mask.py
+
+Create a continuous urban mask from the road network.
+"""
+
 from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
 
 import geopandas as gpd
+from shapely.geometry import MultiPolygon, Polygon
 
-ROOT = Path(__file__).resolve().parent.parent
+import config.app_config as app_config
 
-print("=" * 60)
-print("Creating Urban Mask")
-print("=" * 60)
 
-roads = gpd.read_file(
-    ROOT/"data"/"processed"/"roads_clean.geojson"
-)
+BUFFER_DISTANCE = 120      # meters
+MIN_HOLE_AREA = 5000       # m²
 
-roads = roads.to_crs(32640)
 
-# فقط خیابان‌هایی که جزو بافت شهری هستند
-urban = roads[
-    roads.road_type.isin([
-        "residential",
-        "tertiary",
-        "secondary",
-        "primary",
-        "service",
-        "living_street",
-        "unclassified"
-    ])
-].copy()
+def remove_small_holes(geometry, min_area):
+    """
+    Remove interior holes smaller than min_area.
+    """
 
-# ایجاد بافر برای هر خیابان
-urban["geometry"] = urban.buffer(120)
+    if geometry.is_empty:
+        return geometry
 
-# ادغام همه پلیگون‌ها
-urban_mask = urban.dissolve()
+    if isinstance(geometry, Polygon):
 
-# حذف سوراخ‌های کوچک
-urban_mask = urban.explode(index_parts=False)
+        holes = [
+            ring
+            for ring in geometry.interiors
+            if Polygon(ring).area >= min_area
+        ]
 
-urban_mask = urban[
-    ["geometry"]
-].dissolve()
+        return Polygon(
+            geometry.exterior,
+            holes,
+        )
 
-urban_mask = urban_mask.buffer(0)
+    if isinstance(geometry, MultiPolygon):
 
-urban_mask = gpd.GeoDataFrame(
-    geometry=urban_mask.geometry,
-    crs=roads.crs
-)
+        return MultiPolygon(
+            [
+                remove_small_holes(
+                    poly,
+                    min_area,
+                )
+                for poly in geometry.geoms
+            ]
+        )
 
-urban_mask = urban_mask.to_crs(4326)
+    return geometry
 
-outfile = ROOT/"data"/"processed"/"urban_mask.geojson"
 
-urban_mask.to_file(
-    outfile,
-    driver="GeoJSON"
-)
+def main():
 
-print()
-print("Saved:")
-print(outfile)
+    print("=" * 60)
+    print("Creating Urban Mask")
+    print("=" * 60)
+
+    roads = (
+        gpd.read_file(
+            app_config.DATA_PROCESSED / "roads_clean.geojson"
+        )
+        .to_crs(app_config.TARGET_CRS)
+    )
+
+    urban = roads[
+        roads.road_type.isin(
+            [
+                "residential",
+                "tertiary",
+                "secondary",
+                "primary",
+                "service",
+                "living_street",
+                "unclassified",
+            ]
+        )
+    ].copy()
+
+    # -------------------------------------------------
+    # Create road buffers
+    # -------------------------------------------------
+
+    urban["geometry"] = urban.buffer(BUFFER_DISTANCE)
+
+    # -------------------------------------------------
+    # Merge all polygons
+    # -------------------------------------------------
+
+    urban_mask = urban[["geometry"]].dissolve()
+
+    # -------------------------------------------------
+    # Repair topology
+    # -------------------------------------------------
+
+    urban_mask["geometry"] = urban_mask.buffer(0)
+
+    # -------------------------------------------------
+    # Remove small interior holes
+    # -------------------------------------------------
+
+    urban_mask["geometry"] = urban_mask.geometry.apply(
+        lambda geom: remove_small_holes(
+            geom,
+            MIN_HOLE_AREA,
+        )
+    )
+
+    urban_mask = urban_mask.to_crs(4326)
+
+    output_file = (
+        app_config.DATA_PROCESSED
+        / "urban_mask.geojson"
+    )
+
+    urban_mask.to_file(
+        output_file,
+        driver="GeoJSON",
+    )
+
+    print()
+    print("Saved:")
+    print(output_file)
+
+
+if __name__ == "__main__":
+    main()

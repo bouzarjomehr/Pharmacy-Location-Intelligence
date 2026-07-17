@@ -71,8 +71,11 @@ def main():
             elif t=="Doctor":
                 doctor += facility_weights["Doctor"]*influence
                 accessibility += influence
-            elif t=="Pharmacy":
-                competition += influence
+            elif t == "Pharmacy":
+                competition += (
+                    -facility_weights["Pharmacy"]
+                    * influence
+                )
 
         prescription=hospital+clinic+doctor
         final=(prescription*score_weights["prescription"]

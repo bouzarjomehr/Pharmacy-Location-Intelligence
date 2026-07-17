@@ -23,6 +23,8 @@ data/processed/*
 # Keep final deliverables
 !data/processed/best_areas.geojson
 !data/processed/best_areas.xlsx
+!data/processed/master_database.geojson
+!data/processed/master_database.xlsx
 
 # Output files
 outputs/*

@@ -41,7 +41,7 @@
 
     "candidate_selection": {
 
-        "minimum_distance": 2000,
+        "minimum_distance": 500,
 
         "top_n": 100
 
