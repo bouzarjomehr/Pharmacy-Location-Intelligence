@@ -28,7 +28,6 @@ data/processed/*
 
 # Output files
 outputs/*
-# Keep sample outputs
 !outputs/best_locations_map.html
 !outputs/healthcare_map.html
 !outputs/heatmap.html
