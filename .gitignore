@@ -13,16 +13,25 @@ venv/
 # Cache
 cache/
 
-# Output files
-# outputs/
+# Keep data/raw 
 
 # Processed data
-# data/processed/
-# outputs/
-cache/
-# ولی data/raw را نگه می‌داریم
+data/processed/*
+# Keep final deliverables
+!data/processed/best_areas.geojson
+!data/processed/best_areas.xlsx
 
-# Web UI
+# Output files
+outputs/*
+# Keep sample outputs
+!outputs/best_locations_map.html
+!outputs/healthcare_map.html
+!outputs/heatmap.html
+
+cache/
+
+
+# Undeveloped Web UI
 web/
 
 # Temporary files
