@@ -15,6 +15,9 @@ cache/
 
 # Keep data/raw 
 
+# Google Places raw API responses
+data/raw/master_healthcare_google_raw.jsonl
+
 # Processed data
 data/processed/*
 # Keep final deliverables
@@ -30,6 +33,7 @@ outputs/*
 
 cache/
 
+Debug/
 
 # Undeveloped Web UI
 web/
