@@ -6,6 +6,11 @@
         "Pharmacy": -6
     },
 
+    "population": {
+        "radius": 1000,
+        "normalization": "log"
+    },
+
     "road_bonus": {
         "trunk": 4,
         "primary": 3.5,
@@ -28,22 +33,16 @@
     "competition_radius": 300,
 
     "score_weights": {
-
+        "population": 3,        
         "prescription": 2,
-
         "competition": 3,
-
         "accessibility": 0.1,
-
         "road": 0.1
-
     },
 
     "candidate_selection": {
-
         "minimum_distance": 500,
-
         "top_n": 100
-
     }
+
 }

@@ -6,15 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 PIPELINE = [
 
-    "20_create_smart_candidates.py",
+    "20_score_engine.py",
 
-    "23_score_engine.py",
+    "21_select_best_areas.py",
 
-    "25_generate_candidates.py",
-
-    "26_select_best_areas.py",
-
-    "27_visualize_results.py",
+    "22_visualize_results.py",
 
 ]
 

@@ -13,18 +13,21 @@ RAW_GOOGLE_FILE = (
 
 PIPELINE = [
 
-    "13_import_google.py",
+    "01_import_google.py",
+    "02_clean_google.py",
+    "03_prepare_database.py",
 
-    "14_clean_google.py",
+    "04_download_roads.py",
+    "05_prepare_roads.py",
+    "06_create_smart_candidates.py",
 
-    "15_prepare_database.py",
+    "07_create_urban_mask.py",
 
-    "18_download_roads.py",
+    "08_Import_Population.py",
+    "09_prepare_population.py",
+    "10_attach_population.py",
 
-    "19_prepare_roads.py",
-
-    "24_create_urban_mask.py",
-
+    "11_prepare_population_heatmap.py"    
 ]
 
 print("=" * 60)

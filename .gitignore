@@ -17,6 +17,7 @@ cache/
 
 # Google Places raw API responses
 data/raw/master_healthcare_google_raw.jsonl
+data/raw/GHS_POP_E2030_GLOBE_R2023A_54009_100_V1_0_R6_C23.tif
 
 # Processed data
 data/processed/*
@@ -31,6 +32,8 @@ outputs/*
 !outputs/best_locations_map.html
 !outputs/healthcare_map.html
 !outputs/heatmap.html
+
+archive/
 
 cache/
 
