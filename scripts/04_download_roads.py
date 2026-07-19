@@ -16,18 +16,22 @@ def main():
     print("Downloading Road Network")
     print("=" * 60)
 
-    outfile = app_config.DATA_PROCESSED / "roads.geojson"
+    # ---------- RAW ----------
+    raw_file = app_config.DATA_RAW / "roads.geojson"
+
+    # ---------- PROCESSED ----------
+    processed_file = app_config.DATA_PROCESSED / "roads.geojson"
 
     # -------------------------------------------------
-    # Use cached file if available
+    # Use cached RAW file if available
     # -------------------------------------------------
 
-    if outfile.exists():
+    if raw_file.exists():
 
-        print("Road network already exists.")
+        print("Road network already exists (RAW).")
         print("Skipping download.")
 
-        roads = gpd.read_file(outfile)
+        roads = gpd.read_file(raw_file)
 
     else:
 
@@ -50,16 +54,29 @@ def main():
             )
         ].copy()
 
-        roads = roads.to_crs(app_config.TARGET_CRS)
-
         roads.to_file(
-            outfile,
+            raw_file,
             driver="GeoJSON",
         )
 
         print()
-        print("Saved:")
-        print(outfile)
+        print("Saved RAW:")
+        print(raw_file)
+
+    # -------------------------------------------------
+    # Prepare processed version
+    # -------------------------------------------------
+
+    roads = roads.to_crs(app_config.TARGET_CRS)
+
+    roads.to_file(
+        processed_file,
+        driver="GeoJSON",
+    )
+
+    print()
+    print("Saved PROCESSED:")
+    print(processed_file)
 
     print()
     print("Highway types:")

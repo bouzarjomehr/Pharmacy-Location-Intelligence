@@ -1,69 +1,357 @@
 # Pharmacy Location Intelligence
-Current Version: v1.0
+Current Version: v1.0  
 Status: Stable
 
 # Overview
 
-This project identifies optimal locations for establishing new pharmacies using a GIS-based multi-criteria spatial decision model.
+Pharmacy Location Intelligence (PLI) is a GIS-based decision support system designed to identify the most suitable locations for establishing new pharmacies.
 
-The workflow combines healthcare facilities, road accessibility, competition, and spatial constraints to rank candidate locations across the study area.
+Instead of relying solely on population density or simple distance measures, the system combines multiple spatial criteria into a configurable multi-criteria decision model.
 
-The entire scoring model is fully configurable through a JSON configuration file without modifying the Python source code.
+The complete workflow consists of two independent phases:
 
-## Final Output
+- **Phase 1 – Data Preparation**
+  - Import and clean healthcare facilities
+  - Download and process road network
+  - Generate candidate locations
+  - Process population raster
+  - Attach population information to candidate locations
+
+- **Phase 2 – Decision Engine**
+  - Recalculate population (configurable search radius)
+  - Compute raw criterion scores
+  - Normalize all criteria
+  - Apply configurable criterion weights
+  - Select the best candidate locations using minimum-distance constraints
+  - Generate interactive maps and Excel reports
+
+Every decision parameter (weights, search radius, normalization limits, minimum spacing, etc.) is stored in a single JSON configuration file.
+
+Therefore, the complete scoring behavior can be modified **without editing any Python source code**.
+
+---
+
+# Workflow Diagram
+
+```text
+                         Pharmacy Location Intelligence Workflow
+
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Phase 1 — Data Preparation                   │
+└──────────────────────────────────────────────────────────────────────┘
+
+01_import_google.py
+        │
+        ▼
+02_clean_google.py
+        │
+        ▼
+03_prepare_database.py
+        │
+        ├─────────────────────────────────────────────┐
+        ▼                                             │
+master_database.geojson                              │
+                                                      │
+04_download_roads.py                                 │
+        │                                             │
+        ▼                                             │
+05_prepare_roads.py                                  │
+        │                                             │
+        ▼                                             │
+roads_clean.geojson                                  │
+        │                                             │
+        ▼                                             │
+06_create_smart_candidates.py                         │
+        │                                             │
+        ▼                                             │
+candidate_database.geojson                            │
+                                                      │
+07_create_urban_mask.py                               │
+        │                                             │
+        ▼                                             │
+urban_mask.geojson                                    │
+                                                      │
+08_import_population.py                               │
+        │                                             │
+        ▼                                             │
+09_prepare_population.py                              │
+        │                                             │
+        ▼                                             │
+population_heatmap.geojson                            │
+                                                      │
+Outputs of Phase 1
+(master_database, roads, candidates, population)
+────────────────────────────────────────────────────────────────────────
+
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Phase 2 — Spatial Decision Model                  │
+└──────────────────────────────────────────────────────────────────────┘
+
+20_attach_population.py
+        │
+        ▼
+candidate_database + population
+        │
+        ▼
+21_score_engine.py
+        │
+        ▼
+Raw component scores
+        │
+        ▼
+22_normalize_scores.py
+        │
+        ▼
+Normalized components
+        │
+        ▼
+23_select_best_areas.py
+        │
+        ▼
+Top-N spatial filtering
+        │
+        ▼
+best_areas.geojson
+best_areas.xlsx
+        │
+        ▼
+24_visualize_results.py
+        │
+        ▼
+outputs/best_locations_map.html
+```
+
+Phase 1 generates all reusable spatial datasets and only needs to be executed when the underlying geographic data change.
+
+Phase 2 contains the decision model. Users can freely modify the scoring parameters in `config/scoring.json` and rerun Phase 2 to immediately evaluate different planning scenarios without rebuilding the spatial datasets.
+
+
+# Final Output
 
 ![Map](docs/output-screenshot.png)
 
-## Quick Start (View Results Only)
-If you only want to explore the final results, you only need the following folders:
+---
+
+# Quick Start (View Results Only)
+
+If you only want to explore the final results, you only need:
 
 ```text
 outputs/
     best_locations_map.html
-
-data/processed/
-    best_areas.geojson
-    best_areas.xlsx
 ```
 
-Simply open:
+Simply open
 
 ```text
 outputs/best_locations_map.html
 ```
 
-in any modern web browser.
+using any modern web browser.
 
 No Python installation is required.
 
+---
 
-## For Developers
-To reproduce the complete analysis:
+# Running Phase 2 Only
+
+If you want to experiment with different scoring strategies, you do **not** need to rebuild the GIS datasets.
+
+Simply modify:
 
 ```text
+config/scoring.json
+```
+
+and execute:
+
+```text
+python scripts/run_phase2.py
+```
+
+The decision engine will recompute all scores and generate new recommended locations in a few seconds.
+
+---
+
+# Scoring Methodology
+
+The scoring process is intentionally divided into two stages.
+
+## Stage 1 — Raw Spatial Scores
+
+Each candidate location receives four independent raw scores.
+
+### 1. Prescription Potential
+
+Hospitals, clinics and physicians are searched within the configurable radius.
+
+Each nearby facility contributes according to:
+
+- Facility type weight
+- Gaussian distance decay
+
+```
+Prescription =
+HospitalScore +
+ClinicScore +
+DoctorScore
+```
+
+---
+
+### 2. Competition Penalty
+
+Nearby pharmacies are searched within the same radius.
+
+Each pharmacy subtracts score according to the same Gaussian distance function.
+
+Higher values indicate stronger competition.
+
+---
+
+### 3. Population
+
+Population is calculated by summing all population points inside the configurable radius.
+
+The raw population is transformed using
+
+```
+log(1 + population)
+```
+
+to reduce the influence of extreme values.
+
+---
+
+### 4. Road Accessibility
+
+Road class contributes a fixed bonus.
+
+For example:
+
+```
+Primary road      > Secondary road > Residential road
+```
+
+This criterion intentionally has a much smaller influence than healthcare demand.
+
+---
+
+## Stage 2 — Robust Normalization
+
+Each raw criterion is normalized independently.
+
+Before normalization, extreme outliers are clipped using configurable percentiles.
+
+```
+2nd percentile  ← default lower limit
+98th percentile ← default upper limit
+```
+
+Then Min–Max normalization converts every criterion to:
+
+```
+0 — 100
+```
+
+Therefore:
+
+- 100 represents the strongest candidate for that criterion.
+- 0 represents the weakest candidate.
+
+---
+
+## Stage 3 — Final Decision Score
+
+The normalized criteria are combined using configurable weights.
+
+Default configuration:
+
+| Criterion | Weight |
+|-----------|--------:|
+| Prescription | 30% |
+| Competition | 30% |
+| Population | 30% |
+| Road | 10% |
+
+The final score is computed as:
+
+```
+Final Score =
+ Prescription
+− Competition
++ Population
++ Road
+```
+
+Because competition is a penalty, it is subtracted from the final score.
+
+---
+
+## Main Driver
+
+For every recommended location, the system also reports the dominant criterion ("Main Driver").
+
+This is determined **after normalization and weighting**, meaning it reflects the actual contribution of each criterion to the final ranking rather than the raw values.
+
+This greatly improves interpretability when comparing candidate locations.
+# For Developers
+
+To reproduce the complete workflow:
+
+```bash
 python scripts/run_phase1.py
 python scripts/run_phase2.py
 ```
 
-Phase 1 prepares spatial datasets.
+Phase 1 prepares all spatial datasets.
 
-Phase 2 performs candidate generation, scoring, ranking and visualization.
+Phase 2 performs the complete decision analysis, including:
 
+- population attachment
+- raw scoring
+- score normalization
+- candidate selection
+- interactive visualization
+
+---
 
 # Project Structure
+
+```text
 config/
-    scoring.json               # Model parameters
+    app_config.py
+    scoring.json
 
 data/
-    raw/                       # Original downloaded datasets
-    processed/                 # Intermediate processing outputs
+    raw/
+        ...
+    processed/
+        ...
+
+docs/
+    output-screenshot.png
 
 outputs/
-    best_locations_map.html    # Final interactive map
+    best_locations_map.html
 
 scripts/
-    run_phase1.py              # Data preparation pipeline
-    run_phase2.py              # Analysis pipeline
+
+    run_phase1.py
+    run_phase2.py
+
+    01_import_google.py
+    ...
+    11_prepare_population_heatmap.py
+
+    20_attach_population.py
+    21_score_engine.py
+    22_normalize_scores.py
+    23_select_best_areas.py
+    24_visualize_results.py
+```
+
+---
 
 # Installation
 
@@ -71,14 +359,17 @@ Clone the repository:
 
 ```bash
 git clone https://github.com/<your-username>/pharmacy-location-intelligence.git
+
 cd pharmacy-location-intelligence
 ```
 
-Create and activate a virtual environment:
+Create a virtual environment:
 
 ```bash
 python -m venv .venv
 ```
+
+Activate it.
 
 Windows:
 
@@ -92,285 +383,176 @@ Linux / macOS:
 source .venv/bin/activate
 ```
 
-Install the required packages:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Python Version
+---
 
-The project has been tested with:
+# Python Version
+
+Tested with
 
 - Python 3.13+
 
-Earlier Python versions may also work but have not been officially tested.
+---
 
-## Main Dependencies
+# Main Dependencies
 
-The project relies on the following core libraries:
+Core libraries:
 
-- folium
 - geopandas
-- matplotlib
-- numpy
-- openpyxl
+- shapely
 - osmnx
+- folium
+- scipy
 - pandas
+- numpy
+- matplotlib
+- openpyxl
 - pyproj
 - requests
-- scipy
-- shapely
 
-All package versions are listed in `requirements.txt`.
+Complete versions are listed in:
 
+```text
+requirements.txt
+```
+
+---
 
 # Data Sources
 
-The model integrates several spatial datasets:
+The project integrates four spatial datasets:
 
-Healthcare facilities (Google Maps / OpenStreetMap)
-Road network (OpenStreetMap)
-Urban boundary (generated from road network)
-Candidate road points generated from major roads
+- Google Places healthcare facilities
+- OpenStreetMap road network
+- WorldPop population raster
+- Generated urban boundary
 
-All processed datasets are stored in:
+All intermediate datasets are stored in:
 
+```text
 data/processed/
-Workflow
+```
 
-### Google Places Data
+---
 
-The raw Google Places API response (`master_healthcare_google_raw.jsonl`) is intentionally **not included** in this repository.
-Users must download this file using their own Google Maps Platform API key before running the data preparation pipeline.
-This avoids redistribution of Google Places API responses and complies with Google Maps Platform Terms of Service.
+# Google Places Data
 
+The raw Google Places response file
 
-# pipelines
+```text
+master_healthcare_google_raw.jsonl
+```
 
-The project consists of two independent pipelines.
+is intentionally excluded from the repository.
+
+Users must generate this file using their own Google Maps Platform API key before executing the full Phase 1 pipeline.
+
+This complies with Google Maps Platform Terms of Service.
+
+If the raw file is not available, Script 01 is skipped automatically and the pipeline continues using the existing processed healthcare database.
+
+---
+
+# Pipeline Overview
 
 ## Phase 1 — Data Preparation
 
 Purpose:
 
-Download raw spatial datasets
-Clean and standardize healthcare facilities
-Prepare road network
-Generate urbanmask: The urban mask is generated by buffering the urban road network, dissolving the resulting polygons into a continuous surface, repairing geometry, and removing small interior holes to produce a clean analysis boundary.
+- Import Google Places
+- Clean healthcare facilities
+- Download road network
+- Prepare road network
+- Generate candidate locations
+- Generate urban mask
+- Import population raster
+- Prepare population raster
+- Generate population heatmap
 
-Output:
+Main output:
+
+```text
 data/processed/
+```
 
-### Script 13 is optional.
-If data/raw/master_healthcare_google_raw.jsonl is not available, the pipeline automatically skips the import step and continues using the existing data/processed/google_healthcare.geojson file.
+---
 
-
-## Phase 2 — Spatial Analysis
+## Phase 2 — Spatial Decision Engine
 
 Purpose:
 
-Generate candidate road points
-Compute multi-criteria scores
-Rank candidate locations
-Apply spatial spacing constraints
-Create the interactive recommendation map
+- Attach population using the current search radius
+- Compute raw criterion scores
+- Normalize criteria
+- Apply weighted scoring
+- Select best candidate locations
+- Generate interactive outputs
 
-# Final outputs:
+Main outputs:
 
+```text
 outputs/best_locations_map.html
 
 data/processed/best_areas.geojson
 
 data/processed/best_areas.xlsx
-
-
-# Scoring Configuration
-
-All scoring parameters are defined in:
-
 ```
+
+---
+
+# Configuration
+
+All model parameters are stored in
+
+```text
 config/scoring.json
 ```
 
-This file controls the complete multi-criteria scoring model. Changing these values recalibrates the model without modifying the Python source code.
+This file controls:
 
----
+- facility weights
+- search radius
+- Gaussian sigma
+- road bonuses
+- normalization settings
+- final criterion weights
+- candidate selection parameters
 
-# Overall Scoring Logic
-
-Each candidate location is evaluated using four independent components:
-
-- Prescription Potential
-- Competition
-- Accessibility
-- Road Importance
-
-The final score is calculated as:
-
-```
-Final Score =
-(Prescription × prescription_weight)
-− (Competition × competition_weight)
-+ (Accessibility × accessibility_weight)
-+ (Road Bonus × road_weight)
-```
-
-Each component can be weighted independently using the `score_weights` section.
-The current weights are heuristic parameters obtained through iterative calibration and expert inspection of the generated maps. They are intended as configurable defaults rather than universally optimal values.
-
----
-
-# Facility Weights
-
-Healthcare facilities contribute differently to the expected prescription demand.
-
-| Facility | Description |
-|-----------|-------------|
-| Hospital | Highest demand generator because hospitals usually contain multiple specialties and produce large patient volumes. |
-| Clinic | Medium demand generator. Clinics generally aggregate several physicians but usually generate less demand than hospitals. |
-| Doctor | Individual physician office. |
-| Pharmacy | Negative contribution representing local market competition. |
-
-These values are intentionally relative rather than absolute. Their purpose is to express the expected contribution of one facility type compared with another.
-
----
-
-# Search Radius
-
-```
-search_radius
-```
-
-Maximum distance (meters) used to search for nearby healthcare facilities.
-
-Only facilities inside this radius contribute to the score.
-
-Smaller values produce highly local recommendations.
-
-Larger values produce smoother regional trends.
-
----
-
-# Gaussian Sigma
-
-```
-gaussian_sigma
-```
-
-Controls how quickly facility influence decreases with distance.
-
-Facility influence follows a Gaussian distance-decay function.
-
-- Small sigma → nearby facilities dominate.
-- Large sigma → distant facilities continue to influence the score.
-
-Sigma should normally be smaller than or approximately equal to the search radius.
-
----
-
-# Competition Radius
-
-```
-competition_radius
-```
-
-Reserved for future model extensions.
-
-The current version models pharmacy competition through the Gaussian distance-decay function and therefore does not explicitly use this parameter.
-
----
-
-# Road Bonus
-
-Road hierarchy contributes an accessibility bonus.
-
-Major roads receive larger bonuses because they generally provide:
-
-- higher visibility,
-- easier vehicle access,
-- greater traffic flow.
-
-Typical hierarchy:
-
-- trunk
-- primary
-- secondary
-- tertiary
-
-Road weights are intentionally modest so that healthcare demand remains the dominant factor in the final score.
-
----
-
-# Score Weights
-
-The relative importance of each scoring component is controlled independently.
-
-| Parameter | Purpose |
-|-----------|---------|
-| prescription | Importance of healthcare demand |
-| competition | Penalty for nearby pharmacies |
-| accessibility | Bonus for concentration of healthcare services |
-| road | Accessibility bonus from road hierarchy |
-
-Increasing one weight changes only that component without affecting the underlying data.
-
----
-
-# Candidate Selection
-
-After every road point receives a score, the final recommendation stage performs spatial filtering.
-
-Two parameters control this process:
-
-```
-minimum_distance
-```
-
-Minimum allowed distance between selected candidate locations.
-
-Increasing this value produces a more spatially distributed set of recommendations.
-
-```
-top_n
-```
-
-Maximum number of candidate locations retained after ranking.
+No Python source code needs to be modified when calibrating the model.
 
 ---
 
 # Model Philosophy
 
-The model is intentionally simple, transparent, and interpretable.
+The system is intentionally transparent and fully interpretable.
 
-Rather than relying on a black-box machine learning algorithm, each recommendation is produced from explicit spatial rules based on:
+Instead of using black-box machine learning models, every recommendation is produced from explicit spatial rules whose contribution can be inspected individually.
 
-- nearby healthcare demand,
-- pharmacy competition,
-- road accessibility,
-- configurable weighting parameters.
+This allows planners to understand:
 
-This design allows health planners and decision-makers to understand, reproduce, and calibrate the scoring process for different cities or planning scenarios.
+- why a location receives a high score,
+- which criterion is responsible,
+- how changing model parameters affects the recommendations.
 
-## Key Design Decisions
+The modular architecture also allows additional criteria (traffic, socioeconomic variables, medical specialties, etc.) to be incorporated in future versions without redesigning the pipeline.
 
-The model intentionally prioritizes simplicity and interpretability over excessive model complexity.
+---
 
-Current scoring considers four independent components:
-
-- Healthcare demand
-- Existing pharmacy competition
-- Accessibility
-- Road hierarchy
-
-Medical specialties, population density, traffic volume, and socioeconomic indicators were intentionally excluded because consistent and reliable datasets were not available. The modular design allows these variables to be incorporated in future versions without changing the overall architecture.
-
-## Citation
+# Citation
 
 If this repository contributes to your research, please cite the repository and acknowledge the original author.
 
-## Commercial Applications
+---
 
-This repository is released under the MIT License.
+# License
 
-If you build a commercial product inspired by or substantially extending this work, the author would appreciate being informed. Future commercial collaborations are welcome.
+Released under the MIT License.
+
+Commercial use is permitted under the license terms.
+
+If this work contributes to a commercial product, acknowledgement of the original repository is appreciated.

@@ -3,7 +3,7 @@
         "Hospital": 6,
         "Clinic": 3,
         "Doctor": 2,
-        "Pharmacy": -6
+        "Pharmacy": 6
     },
 
     "population": {
@@ -26,19 +26,28 @@
         "trunk_link": 2.5
     },
 
+    "score_weights": {
+        "population": 3,        
+        "prescription": 3,
+        "competition": 3,
+        "road": 1
+    },
+
+    "normalization": {
+        "prescription_weight": 0.35,
+        "competition_weight": 0.30,
+        "population_weight": 0.25,
+        "road_weight": 0.10,
+
+        "clip_lower_percentile": 2,
+        "clip_upper_percentile": 98
+    },
+
     "search_radius": 250,
 
     "gaussian_sigma": 125,
 
     "competition_radius": 300,
-
-    "score_weights": {
-        "population": 3,        
-        "prescription": 2,
-        "competition": 3,
-        "accessibility": 0.1,
-        "road": 0.1
-    },
 
     "candidate_selection": {
         "minimum_distance": 500,

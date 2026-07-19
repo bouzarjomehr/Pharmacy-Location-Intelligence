@@ -19,18 +19,32 @@ cache/
 data/raw/master_healthcare_google_raw.jsonl
 data/raw/GHS_POP_E2030_GLOBE_R2023A_54009_100_V1_0_R6_C23.tif
 
-# Processed data
+
+# Ignore everything in processed data
 data/processed/*
-# Keep final deliverables
-!data/processed/best_areas.geojson
-!data/processed/best_areas.xlsx
+
+## except:
+# ---------- Phase 1 data outputs for rerun phase2 pipeline:
 !data/processed/master_database.geojson
-!data/processed/master_database.xlsx
+
+!data/processed/candidate_database.geojson
+
+!data/processed/population_heatmap.geojson
+!data/processed/population.tif
+
+!data/processed/master_database.geojson
+
+!data/processed/roads_clean.geojson
+!data/processed/road_points.geojson
+!data/processed/urban_mask.geojson
+
+# ---------- Phase 2 data outputs to see final resault:
+!data/processed/best_areas.xlsx
+
 
 # Output files
 outputs/*
-!outputs/best_locations_map.html
-!outputs/healthcare_map.html
+!outputs/PLI_candidate_locations_map.html
 !outputs/heatmap.html
 
 archive/
