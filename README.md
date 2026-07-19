@@ -175,9 +175,9 @@ Default configuration:
 
 | Criterion | Weight |
 |-----------|--------:|
-| Prescription | 30% |
+| Prescription | 35% |
 | Competition | 30% |
-| Population | 30% |
+| Population | 25% |
 | Road | 10% |
 
 The final score is computed as:
