@@ -2,7 +2,13 @@
 Normalize raw scores to 0-100 and apply configurable weights.
 """
 
+
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
 import json
 
 import geopandas as gpd

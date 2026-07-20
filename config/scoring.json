@@ -2,8 +2,7 @@
     "facility_weights": {
         "Hospital": 6,
         "Clinic": 3,
-        "Doctor": 2,
-        "Pharmacy": 6
+        "Doctor": 2
     },
 
     "population": {
@@ -15,29 +14,14 @@
         "trunk": 4,
         "primary": 3.5,
         "secondary": 3,
-        "tertiary": 2,
-        "residential": 1,
-        "service": 0.5,
-        "living_street": 0.5,
-        "unclassified": 1,
-        "primary_link": 2,
-        "secondary_link": 1.5,
-        "tertiary_link": 1,
-        "trunk_link": 2.5
-    },
-
-    "score_weights": {
-        "population": 3,        
-        "prescription": 3,
-        "competition": 3,
-        "road": 1
+        "tertiary": 2
     },
 
     "normalization": {
-        "prescription_weight": 0.35,
+        "prescription_weight": 0.50,
         "competition_weight": 0.30,
-        "population_weight": 0.25,
-        "road_weight": 0.10,
+        "population_weight": 0.30,
+        "road_weight": 0.20,
 
         "clip_lower_percentile": 2,
         "clip_upper_percentile": 98
@@ -47,11 +31,8 @@
 
     "gaussian_sigma": 125,
 
-    "competition_radius": 300,
-
     "candidate_selection": {
         "minimum_distance": 500,
         "top_n": 100
     }
-
 }

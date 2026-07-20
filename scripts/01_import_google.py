@@ -121,7 +121,7 @@ def main():
     gdf = gpd.GeoDataFrame(
         df,
         geometry=geometry,
-        crs="EPSG:4326",
+        crs=app_config.OUTPUT_CRS,
     )
 
     # ---------------------------------------------------

@@ -1,5 +1,5 @@
 """
-24_create_urban_mask.py
+07_create_urban_mask.py
 
 Create a continuous urban mask from the road network.
 """
@@ -112,7 +112,7 @@ def main():
         )
     )
 
-    urban_mask = urban_mask.to_crs(4326)
+    urban_mask = urban_mask.to_crs(app_config.OUTPUT_CRS)
 
     output_file = (
         app_config.DATA_PROCESSED

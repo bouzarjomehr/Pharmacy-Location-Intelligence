@@ -15,10 +15,9 @@ The complete workflow consists of two independent phases:
   - Download and process road network
   - Generate candidate locations
   - Process population raster
-  - Attach population information to candidate locations
 
 - **Phase 2 – Decision Engine**
-  - Recalculate population (configurable search radius)
+  - Attach population to candidate locations (configurable radius)
   - Compute raw criterion scores
   - Normalize all criteria
   - Apply configurable criterion weights
@@ -28,6 +27,24 @@ The complete workflow consists of two independent phases:
 Every decision parameter (weights, search radius, normalization limits, minimum spacing, etc.) is stored in a single JSON configuration file.
 
 Therefore, the complete scoring behavior can be modified **without editing any Python source code**.
+**note: The final aggregation weights were empirically calibrated through iterative inspection of the resulting spatial recommendations and are intended as configurable default values rather than universally optimal parameters.**
+
+
+---
+
+# Model Philosophy
+
+The system is intentionally transparent and fully interpretable.
+
+Instead of using black-box machine learning models, every recommendation is produced from explicit spatial rules whose contribution can be inspected individually.
+
+This allows planners to understand:
+
+- why a location receives a high score,
+- which criterion is responsible,
+- how changing model parameters affects the recommendations.
+
+The modular architecture also allows additional criteria (traffic, socioeconomic variables, medical specialties, etc.) to be incorporated in future versions without redesigning the pipeline.
 
 ---
 
@@ -44,13 +61,13 @@ If you only want to explore the final results, you only need:
 
 ```text
 outputs/
-    best_locations_map.html
+    PLI_candidate_locations_map.html
 ```
 
 Simply open
 
 ```text
-outputs/best_locations_map.html
+outputs/PLI_candidate_locations_map.html
 ```
 
 using any modern web browser.
@@ -72,7 +89,7 @@ config/scoring.json
 and execute:
 
 ```text
-python scripts/run_phase2.py
+python scripts/run_phase2_SCENARIO_ANALYSIS.py
 ```
 
 The decision engine will recompute all scores and generate new recommended locations in a few seconds.
@@ -175,10 +192,10 @@ Default configuration:
 
 | Criterion | Weight |
 |-----------|--------:|
-| Prescription | 35% |
-| Competition | 30% |
-| Population | 25% |
-| Road | 10% |
+| Prescription | 50% |
+| Competition | -30% |
+| Population | 30% |
+| Road | 20% |
 
 The final score is computed as:
 
@@ -206,8 +223,8 @@ This greatly improves interpretability when comparing candidate locations.
 To reproduce the complete workflow:
 
 ```bash
-python scripts/run_phase1.py
-python scripts/run_phase2.py
+python scripts/run_phase1_DATA_PREPARATION.py
+python scripts/run_phase2_SCENARIO_ANALYSIS.py
 ```
 
 Phase 1 prepares all spatial datasets.
@@ -239,16 +256,16 @@ docs/
     output-screenshot.png
 
 outputs/
-    best_locations_map.html
+    PLI_candidate_locations_map.html
 
 scripts/
 
-    run_phase1.py
-    run_phase2.py
+    run_phase1_DATA_PREPARATION.py
+    run_phase2_SCENARIO_ANALYSIS.py
 
     01_import_google.py
     ...
-    11_prepare_population_heatmap.py
+    10_prepare_population_heatmap.py
 
     20_attach_population.py
     21_score_engine.py
@@ -316,7 +333,7 @@ Core libraries:
 - scipy
 - pandas
 - numpy
-- matplotlib
+- rasterio
 - openpyxl
 - pyproj
 - requests
@@ -335,7 +352,7 @@ The project integrates four spatial datasets:
 
 - Google Places healthcare facilities
 - OpenStreetMap road network
-- WorldPop population raster
+- GHSL GHS-POP population raster (R2023A, 100 m resolution, 2030 projection epoch)
 - Generated urban boundary
 
 All intermediate datasets are stored in:
@@ -392,7 +409,7 @@ data/processed/
 
 Purpose:
 
-- Attach population using the current search radius
+- Attach population using the configurable population radius
 - Compute raw criterion scores
 - Normalize criteria
 - Apply weighted scoring
@@ -402,7 +419,7 @@ Purpose:
 Main outputs:
 
 ```text
-outputs/best_locations_map.html
+outputs/PLI_candidate_locations_map.html
 
 data/processed/best_areas.geojson
 
@@ -431,21 +448,6 @@ This file controls:
 
 No Python source code needs to be modified when calibrating the model.
 
----
-
-# Model Philosophy
-
-The system is intentionally transparent and fully interpretable.
-
-Instead of using black-box machine learning models, every recommendation is produced from explicit spatial rules whose contribution can be inspected individually.
-
-This allows planners to understand:
-
-- why a location receives a high score,
-- which criterion is responsible,
-- how changing model parameters affects the recommendations.
-
-The modular architecture also allows additional criteria (traffic, socioeconomic variables, medical specialties, etc.) to be incorporated in future versions without redesigning the pipeline.
 
 ---
 

@@ -3,9 +3,16 @@ Select the best candidate locations while enforcing
 a minimum distance.
 """
 
-import json
+
+import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+
+import json
+import config.app_config as app_config
 import geopandas as gpd
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,8 +24,8 @@ CONFIG_FILE = ROOT / "config" / "scoring.json"
 OUTPUT_GEOJSON = ROOT / "data" / "processed" / "best_areas.geojson"
 OUTPUT_EXCEL = ROOT / "data" / "processed" / "best_areas.xlsx"
 
-TARGET_CRS = 32640
-OUTPUT_CRS = 4326
+TARGET_CRS = app_config.TARGET_CRS
+OUTPUT_CRS = app_config.OUTPUT_CRS
 
 
 def main():
@@ -73,29 +80,27 @@ def main():
         .to_crs(OUTPUT_CRS)
     )
 
+    # Competition is a penalty (subtracted from the
+    # final score), so it can never be the reason a
+    # location ranks high — exclude it from the driver.
+
     score_columns = [
         c
         for c in [
             "prescription_component",
-            "competition_component",
             "population_component",
             "road_component",
         ]
         if c in selected.columns
-    ]    
+    ]
 
     if score_columns:
 
         selected["main_reason"] = (
             selected[score_columns]
             .idxmax(axis=1)
-            .str.replace("_score", "", regex=False)
-        )
-
-        selected["main_reason"] = (
-            selected["main_reason"]
             .str.replace("_component", "", regex=False)
-        )        
+        )
 
     else:
 

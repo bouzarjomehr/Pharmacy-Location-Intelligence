@@ -2,12 +2,21 @@
 Multi-criteria scoring engine for pharmacy candidate locations.
 """
 
+
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
 import json
 
 import geopandas as gpd
 import numpy as np
+import config.app_config as app_config
+
 from scipy.spatial import cKDTree
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -18,8 +27,8 @@ INPUT_CANDIDATES = ROOT / "data" / "processed" / "candidate_database.geojson"
 
 OUTPUT_FILE = ROOT / "data" / "processed" / "candidate_scores.geojson"
 
-TARGET_CRS = 32640
-OUTPUT_CRS = 4326
+TARGET_CRS = app_config.TARGET_CRS
+OUTPUT_CRS = app_config.TARGET_CRS
 
 
 def main():
@@ -35,7 +44,10 @@ def main():
     road_bonus = settings["road_bonus"]
     radius = settings["search_radius"]
     sigma = settings["gaussian_sigma"]
-    score_weights = settings["score_weights"]
+
+    population_normalization = (
+        settings["population"]["normalization"]
+    )
 
     facilities = (
         gpd.read_file(INPUT_FACILITIES)
@@ -56,7 +68,6 @@ def main():
     competition_scores = []
     road_scores = []
     population_scores = []
-    final_scores = []
 
     for row in candidates.itertuples():
 
@@ -77,8 +88,10 @@ def main():
             1,
         )
 
-        # log-transformed population
-        population_score = np.log1p(row.population)
+        if population_normalization == "log":
+            population_score = np.log1p(row.population)
+        else:
+            population_score = row.population
 
         for idx in nearby_ids:
 
@@ -127,23 +140,10 @@ def main():
 
             elif t == "Pharmacy":
 
-                competition += (
-                    facility_weights["Pharmacy"]
-                    * influence
-                )
-
-        prescription = (
-            hospital
-            + clinic
-            + doctor
-        )
-
-        final = (
-            prescription * score_weights["prescription"]
-            - competition * score_weights["competition"]
-            + road_score * score_weights["road"]
-            + population_score * score_weights["population"]
-        )
+                # Raw Gaussian influence. Any constant
+                # factor here would cancel out during
+                # min-max normalization in script 22.
+                competition += influence
 
         hospital_scores.append(hospital)
         clinic_scores.append(clinic)
@@ -151,7 +151,6 @@ def main():
         competition_scores.append(competition)
         road_scores.append(road_score)
         population_scores.append(population_score)
-        final_scores.append(final)
 
     candidates["hospital_score"] = hospital_scores
     candidates["clinic_score"] = clinic_scores
@@ -168,8 +167,6 @@ def main():
             doctor_scores,
         )
     ]
-
-    candidates["final_score"] = final_scores
 
     candidates = candidates.to_crs(
         OUTPUT_CRS
@@ -192,7 +189,6 @@ def main():
                 "competition_score",
                 "road_score",
                 "population_score",
-                "final_score",
             ]
         ].describe()
     )

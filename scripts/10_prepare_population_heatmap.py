@@ -23,7 +23,7 @@ OUTPUT_FILE = (
     / "population_heatmap.geojson"
 )
 
-OUTPUT_CRS = "EPSG:4326"
+OUTPUT_CRS = app_config.OUTPUT_CRS
 
 # -------------------------------------------------
 # Keep one pixel every N pixels

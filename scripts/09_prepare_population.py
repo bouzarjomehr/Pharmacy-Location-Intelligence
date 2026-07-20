@@ -37,7 +37,7 @@ def main():
 
     center = gpd.GeoSeries(
         [Point(app_config.MAP_CENTER[1], app_config.MAP_CENTER[0])],
-        crs="EPSG:4326",
+        crs=app_config.OUTPUT_CRS,
     )
 
     study_area = (

@@ -1,11 +1,15 @@
 from pathlib import Path
+import json
 import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
 import geopandas as gpd
+import numpy as np
 import rasterio
+from rasterio.transform import xy
+from scipy.spatial import cKDTree
 
 import config.app_config as app_config
 
@@ -54,32 +58,73 @@ def main():
 
     # -------------------------------------------------
     # Attach population
+    #
+    # Sum all populated raster cells within the
+    # configurable radius around each candidate
+    # (population.radius in config/scoring.json).
     # -------------------------------------------------
+
+    with open(
+        app_config.CONFIG / "scoring.json",
+        encoding="utf8",
+    ) as f:
+        scoring = json.load(f)
+
+    radius = scoring["population"]["radius"]
+
+    print(f"Population radius : {radius} m")
 
     with rasterio.open(population_raster) as src:
 
-        candidates = candidates.to_crs(src.crs)
+        arr = src.read(1)
 
-        coords = [
-            (geom.x, geom.y)
-            for geom in candidates.geometry
+        rows, cols = np.where(arr > 0)
+
+        values = arr[rows, cols].astype(float)
+
+        xs, ys = xy(
+            src.transform,
+            rows,
+            cols,
+            offset="center",
+        )
+
+        pixels = gpd.GeoDataFrame(
+            {"pixel_population": values},
+            geometry=gpd.points_from_xy(xs, ys),
+            crs=src.crs,
+        )
+
+    pixels = pixels.to_crs(app_config.TARGET_CRS)
+
+    candidates = candidates.to_crs(app_config.TARGET_CRS)
+
+    tree = cKDTree(
+        np.c_[
+            pixels.geometry.x,
+            pixels.geometry.y,
         ]
+    )
 
-        population = []
+    candidate_xy = np.c_[
+        candidates.geometry.x,
+        candidates.geometry.y,
+    ]
 
-        for value in src.sample(coords):
+    neighbor_ids = tree.query_ball_point(
+        candidate_xy,
+        radius,
+    )
 
-            v = float(value[0])
+    pixel_population = pixels["pixel_population"].to_numpy()
 
-            if v < 0:
-                v = 0
-
-            population.append(v)
-
-    candidates["population"] = population
+    candidates["population"] = [
+        float(pixel_population[ids].sum())
+        for ids in neighbor_ids
+    ]
 
     # -------------------------------------------------
-    # Back to project CRS
+    # Back to geographic CRS for storage
     # -------------------------------------------------
 
     candidates = candidates.to_crs(

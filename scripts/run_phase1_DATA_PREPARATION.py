@@ -36,11 +36,11 @@ print("=" * 60)
 for script in PIPELINE:
 
     # -------------------------------------------------
-    # Script 13 is optional
+    # Script 01 is optional
     # -------------------------------------------------
 
     if (
-        script == "13_import_google.py"
+        script == "01_import_google.py"
         and not RAW_GOOGLE_FILE.exists()
     ):
 

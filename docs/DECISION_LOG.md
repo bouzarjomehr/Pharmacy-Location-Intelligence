@@ -130,8 +130,8 @@ including:
 - road bonuses
 - search radius
 - Gaussian decay
-- competition radius
-- score weights
+- population radius and transform
+- normalization and criterion weights
 - candidate selection parameters
 
 ### Consequences

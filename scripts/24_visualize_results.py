@@ -2,11 +2,19 @@
 Create an interactive map of recommended pharmacy locations.
 """
 
+import sys
 from pathlib import Path
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+
 import folium
+import json
 import geopandas as gpd
 import pandas as pd
+import config.app_config as app_config
 from folium.plugins import HeatMap
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,8 +48,8 @@ OUTPUT_MAP = (
     / "PLI_candidate_locations_map.html"
 )
 
-MAP_CENTER = [31.8974, 54.3569]
-MAP_ZOOM = 13
+MAP_CENTER = app_config.MAP_CENTER
+MAP_ZOOM = app_config.MAP_ZOOM
 
 
 def main():
@@ -50,6 +58,7 @@ def main():
     print("Creating Interactive Map")
     print("=" * 60)
 
+    
     # -------------------------------------------------
     # Load datasets
     # -------------------------------------------------
@@ -69,14 +78,14 @@ def main():
             ]
         ]
         .copy()
-        .to_crs(4326)
+        .to_crs(app_config.OUTPUT_CRS)
     )
 
     population = (
         gpd.read_file(
             POPULATION
         )
-        .to_crs(4326)
+        .to_crs(app_config.OUTPUT_CRS)
     )
 
     # -------------------------------------------------
@@ -227,6 +236,17 @@ def main():
     # Recommended Candidate Locations
     # =================================================
 
+    CONFIG_FILE = ROOT / "config" / "scoring.json"
+
+    with open(CONFIG_FILE, encoding="utf8") as f:
+        settings = json.load(f)
+
+    weights = settings["normalization"]
+    prescription_weight = weights["prescription_weight"]
+    competition_weight = weights["competition_weight"]
+    population_weight = weights["population_weight"]
+    road_weight = weights["road_weight"]
+
     for idx, candidate in enumerate(candidates.itertuples()):
 
         if idx < 20:
@@ -242,37 +262,47 @@ def main():
 
         popup = folium.Popup(
             f"""
-            <div style="width:320px">
+            <div style="width:320px;font-size:12px;">
 
-            <h4>{candidate.candidate_id}</h4>
+            <h3>{candidate.candidate_id}</h3>
 
             <b>Rank:</b> {idx+1}<br>
             <b>Final Weighted Score:</b> {candidate.final_score:.2f}
 
             <hr>
 
-            <table style="width:100%;font-size:13px">
+            <b>Score Details (0-100):</b>
 
-            <tr><td><b>Score Details (0-100):</b></td></tr>
+            <table style="width:100%; border-collapse:collapse;">
 
             <tr>
-                <td>Prescription Score</td>
-                <td align="right"><b>{candidate.prescription_norm:.1f}</b></td>
+                <th align="left">Criterion</th>
+                <th align="right" style="text-align: right;">Score</th>
+                <th align="right" style="text-align: right;">Weight</th>
             </tr>
 
             <tr>
-                <td>Competition Penalty</td>
+                <td>Prescription</td>
+                <td align="right">{candidate.prescription_norm:.1f}</td>
+                <td align="right">{prescription_weight:.0%}</td>
+            </tr>
+
+            <tr>
+                <td>Competition</td>
                 <td align="right">-{candidate.competition_norm:.1f}</td>
+                <td align="right">-{competition_weight:.0%}</td>
             </tr>
 
             <tr>
-                <td>Road Score</td>
-                <td align="right">{candidate.road_norm:.1f}</td>
-            </tr>
-
-            <tr>
-                <td>Population Score</td>
+                <td>Population</td>
                 <td align="right">{candidate.population_norm:.1f}</td>
+                <td align="right">{population_weight:.0%}</td>
+            </tr>
+
+            <tr>
+                <td>Road</td>
+                <td align="right">{candidate.road_norm:.1f}</td>
+                <td align="right">{road_weight:.0%}</td>
             </tr>
 
             </table>
@@ -286,7 +316,7 @@ def main():
             {candidate.road_type}<br>
 
             <b>Population (n):</b>
-            {candidate.population}<br>
+            {candidate.population:,.0f}<br>
 
             <hr>
 
@@ -344,6 +374,11 @@ def main():
         font-size:13px;
     ">
 
+    <h4><b>Pharmacy Location Intelligence (PLI)</b></h4>
+    <a href="https://github.com/bouzarjomehr/Pharmacy-Location-Intelligence" target="_blank" rel="noopener noreferrer">
+       📄 Project Documentation & Source Code on Github</a><br><br>
+
+    <h4><b>Legends:</b></h4>
     <b>Recommended Pharmacy Locations</b><br>
 
     <span style="color:#00441b;">●</span> Rank 1–20<br>
@@ -352,7 +387,7 @@ def main():
     <span style="color:#a6d96a;">●</span> Rank 61–80<br>
     <span style="color:#d9f0d3;">●</span> Rank 81–100
 
-    <hr>
+    <br><br>
 
     <b>Healthcare Facilities</b><br>
 
@@ -361,7 +396,7 @@ def main():
     <span style="color:#8ecae6;">●</span> Doctor<br>
     <span style="color:#dd0000;">●</span> Pharmacy
 
-    <hr>
+    <br><br>
 
     Heatmap = Population Density
 

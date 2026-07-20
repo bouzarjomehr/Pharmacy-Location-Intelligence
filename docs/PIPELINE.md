@@ -1,25 +1,37 @@
-Phase 1
-Raw Data
-    ↓
-Google Import
-    ↓
-Cleaning
-    ↓
-Master Database
-    ↓
-Road Download
-    ↓
-Urban Mask
+Phase 1 — Data Preparation
+(run_phase1_DATA_PREPARATION.py)
 
-Phase 2
-Road Points
+Google Raw Data (optional)
     ↓
-Road Scoring
+01 Google Import
     ↓
-Multi Criteria Scoring
+02 Cleaning
     ↓
-Candidate Generation
+03 Master Database
     ↓
-Best Areas
+04 Road Download
     ↓
-Interactive Map
+05 Road Preparation
+    ↓
+06 Candidate Generation (road points)
+    ↓
+07 Urban Mask
+    ↓
+08 Population Download (GHSL)
+    ↓
+09 Population Raster Clip
+    ↓
+10 Population Heatmap
+
+Phase 2 — Scenario Analysis
+(run_phase2_SCENARIO_ANALYSIS.py)
+
+20 Attach Population (sum within configurable radius)
+    ↓
+21 Raw Multi-Criteria Scoring
+    ↓
+22 Normalization + Weighted Final Score
+    ↓
+23 Best-Area Selection (top-N, minimum spacing)
+    ↓
+24 Interactive Map

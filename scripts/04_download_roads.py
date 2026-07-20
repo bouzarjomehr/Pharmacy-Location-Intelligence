@@ -42,7 +42,7 @@ def main():
         roads = ox.features_from_point(
             app_config.MAP_CENTER,
             tags=tags,
-            dist=18000,
+            dist=app_config.STUDY_RADIUS,
         )
 
         roads = roads[

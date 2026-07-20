@@ -1,20 +1,27 @@
 """
-20_create_smart_candidates.py
+06_create_smart_candidates.py
 
 Generate candidate points along the road network.
 """
 
+import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+
 import geopandas as gpd
+import config.app_config as app_config
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
 INPUT_FILE = ROOT / "data" / "processed" / "roads_clean.geojson"
 OUTPUT_FILE = ROOT / "data" / "processed" / "road_points.geojson"
 
-TARGET_CRS = 32640
-OUTPUT_CRS = 4326
+TARGET_CRS = app_config.TARGET_CRS
+OUTPUT_CRS = app_config.OUTPUT_CRS
 
 # -------------------------------------------------
 # Only these road types are considered suitable
