@@ -32,8 +32,6 @@ data/processed/*
 !data/processed/population_heatmap.geojson
 !data/processed/population.tif
 
-!data/processed/master_database.geojson
-
 !data/processed/roads_clean.geojson
 !data/processed/road_points.geojson
 !data/processed/urban_mask.geojson
@@ -46,6 +44,28 @@ data/processed/*
 outputs/*
 !outputs/PLI_candidate_locations_map.html
 !outputs/heatmap.html
+
+# ----------------------------------------
+# Validation outputs
+# ----------------------------------------
+
+# Keep validation folder
+!outputs/validation/
+
+# Ignore everything inside validation
+outputs/validation/*
+
+# Keep only analysis tables and reports
+!outputs/validation/*.xlsx
+!outputs/validation/*.txt
+!outputs/validation/*.md
+
+# Ignore figures
+outputs/validation/*.png
+outputs/validation/*.jpg
+outputs/validation/*.jpeg
+outputs/validation/*.svg
+outputs/validation/*.pdf
 
 archive/
 

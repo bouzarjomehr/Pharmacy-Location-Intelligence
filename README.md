@@ -8,7 +8,7 @@ Pharmacy Location Intelligence (PLI) is a GIS-based decision support system desi
 
 Instead of relying solely on population density or simple distance measures, the system combines multiple spatial criteria into a configurable multi-criteria decision model.
 
-The complete workflow consists of two independent phases:
+The complete workflow consists of three phases:
 
 - **Phase 1 – Data Preparation**
   - Import and clean healthcare facilities
@@ -24,10 +24,37 @@ The complete workflow consists of two independent phases:
   - Select the best candidate locations using minimum-distance constraints
   - Generate interactive maps and Excel reports
 
+- **Phase 3 – Validation & Sensitivity Analysis**
+  - Sensitivity analysis for criterion weights
+  - Component contribution analysis
+  - Competition ablation experiment
+  - Supplementary statistical validation analyses
+
 Every decision parameter (weights, search radius, normalization limits, minimum spacing, etc.) is stored in a single JSON configuration file.
 
 Therefore, the complete scoring behavior can be modified **without editing any Python source code**.
-**note: The final aggregation weights were empirically calibrated through iterative inspection of the resulting spatial recommendations and are intended as configurable default values rather than universally optimal parameters.**
+
+> **Note:** The final aggregation weights were empirically calibrated through iterative inspection of the resulting spatial recommendations and are intended as configurable default values rather than universally optimal parameters.
+
+---
+
+## About Phase 3
+
+Phase 3 is an optional validation layer developed to evaluate the robustness, interpretability, and practical behavior of the decision framework. Since it serves as a supplementary analytical phase rather than the core workflow, its implementation is not described in detail throughout this README.
+
+Instead, all validation outputs, statistical summaries, figures, and detailed interpretations are documented in:
+
+```
+outputs/validation/
+```
+
+including the accompanying report:
+
+```
+outputs/validation/validation_analysis_interpretation.md
+```
+
+This keeps the main documentation focused on the operational pipeline (Phases 1–2), while preserving the complete validation framework as a separate reproducible research appendix.
 
 
 ---

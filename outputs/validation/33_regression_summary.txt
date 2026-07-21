@@ -1,0 +1,10 @@
+Variance Decomposition Analysis
+============================================================
+
+Full model R² = 1.0000
+
+              Variable  Marginal_R2  Delta_R2  Standardized_Beta
+prescription_component     0.707160  0.906300           1.104345
+ competition_component     0.000097  0.192988          -0.490202
+  population_component     0.086032  0.016439           0.130215
+        road_component     0.007742  0.097457           0.321806

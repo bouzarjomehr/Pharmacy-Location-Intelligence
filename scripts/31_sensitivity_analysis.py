@@ -31,6 +31,11 @@ import matplotlib.pyplot as plt
 
 import config.app_config as app_config
 
+from scripts.phase3_engine import (
+    calculate_final_score,
+    spatial_selection,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 
 CANDIDATE_FILE = (
@@ -66,54 +71,6 @@ def load_config():
         return json.load(f)
 
 
-def spatial_selection(
-    gdf,
-    minimum_distance,
-    top_n,
-):
-    """
-    Reproduce the greedy spatial filtering used in
-    23_select_best_areas.py
-    """
-
-    gdf = (
-        gdf.sort_values(
-            "final_score",
-            ascending=False,
-        )
-        .copy()
-    )
-
-    selected = []
-
-    for row in gdf.itertuples():
-
-        keep = True
-
-        for prev in selected:
-
-            if (
-                row.geometry.distance(
-                    prev.geometry
-                )
-                < minimum_distance
-            ):
-                keep = False
-                break
-
-        if keep:
-
-            selected.append(row)
-
-        if len(selected) >= top_n:
-            break
-
-    return gpd.GeoDataFrame(
-        [r._asdict() for r in selected],
-        geometry="geometry",
-        crs=gdf.crs,
-    )
-
 def evaluate_weights(
     gdf,
     prescription_weight,
@@ -123,26 +80,13 @@ def evaluate_weights(
     minimum_distance,
     top_n,
 ):
-
-    tmp = gdf.copy()
-
-    positive_score = (
-
-        tmp["prescription_norm"] * prescription_weight
-
-        + tmp["population_norm"] * population_weight
-
-        + tmp["road_norm"] * road_weight
-
+    tmp = calculate_final_score(
+        gdf,
+        prescription_weight,
+        competition_weight,
+        population_weight,
+        road_weight,
     )
-
-    competition_penalty = (
-
-        tmp["competition_norm"] * competition_weight
-
-    )
-
-    tmp["final_score"] = positive_score - competition_penalty    
 
     selected = spatial_selection(
         tmp,
@@ -151,7 +95,6 @@ def evaluate_weights(
     )
 
     return selected
-
 
 def jaccard(a, b):
 
