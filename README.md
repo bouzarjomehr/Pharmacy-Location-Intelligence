@@ -1,4 +1,4 @@
-# Pharmacy Location Intelligence
+# Pharmacy Location Intelligence (PLI)
 Current Version: v1.0  
 Status: Stable
 
