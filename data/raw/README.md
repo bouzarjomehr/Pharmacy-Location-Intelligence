@@ -8,4 +8,4 @@ To reproduce the pipeline:
 2. Place the exported dataset here.
 3. Run Phase 1.
 
-To ensure reproducibility, the processed Google Places dataset is included. Therefore, the workflow can be reproduced by running Phase 1 starting from Script 14, followed by all subsequent phases.
+To ensure reproducibility, the processed dataset is included. Therefore, the workflow can be reproduced by running Phase 2, followed by all subsequent phases.
